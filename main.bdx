@@ -1,0 +1,15 @@
+fun fibonacci(n: uint64): uint64 {
+    if n <= 1 {
+        return n;
+    }
+
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+fun main(args: [string]) {
+    let res: uint64 = fibonacci(10);
+    println(res);
+
+    let my_float: float64 = 3.14 + 3.14;
+    println(my_float);
+}
