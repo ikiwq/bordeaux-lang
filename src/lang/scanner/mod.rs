@@ -58,7 +58,7 @@ impl Scanner {
         if c == '"' {
             return self.string();
         }
-        if c.is_numeric() {
+        if c.is_ascii_digit() {
             return self.number();
         }
         if c.is_alphabetic() {
@@ -160,7 +160,7 @@ impl Scanner {
                 continue;
             }
 
-            if c.is_numeric() {
+            if c.is_ascii_digit() {
                 lexeme.push(self.advance().unwrap());
                 continue;
             }

@@ -1,100 +1,23 @@
 use crate::lang::scanner::token::Token;
 
 #[derive(Debug)]
-pub struct Program {
-    pub statements: Vec<Statement>,
-}
-
-impl Program {
-    pub fn new(statements: Vec<Statement>) -> Program {
-        Program { statements }
-    }
-}
-
-#[derive(Debug)]
-pub enum Statement {
-    Block {
-        left_brace: Token,
-        statements: Vec<Statement>,
-        right_brace: Token,
-    },
-    If {
-        keyword: Token,
-        condition: Expr,
-        then_branch: Box<Statement>,
-        else_branch: Option<Box<Statement>>,
-    },
-    While {
-        keyword: Token,
-        condition: Expr,
-        body: Box<Statement>,
-    },
-    TypeDeclaration {
-        identifier: Token,
-        var_type: VarType,
-    },
-    VarDeclaration {
-        keyword: Token,
-        identifier: Token,
-        var_type: VarType,
-        initializer: Option<Expr>,
-    },
-    FunDeclaration {
-        keyword: Token,
-        identifier: Token,
-        params: Vec<FunParameter>,
-        return_type: VarType,
-        body: Box<Statement>,
-    },
-    Return {
-        keyword: Token,
-        value: Expr,
-    },
-    Expression(Expr),
-}
-
-#[derive(Debug)]
-pub struct FunParameter {
+pub struct StructField {
     pub name: Token,
     pub var_type: VarType,
 }
 
-#[derive(Debug)]
-pub enum Expr {
-    Literal(Literal),
-    Variable(Token),
-    Binary {
-        left: Box<Expr>,
-        operator: Token,
-        right: Box<Expr>,
-    },
-    Unary {
-        operator: Token,
-        right: Box<Expr>,
-    },
-    Grouping(Box<Expr>),
-    Call {
-        callee: Box<Expr>,
-        arguments: Vec<Expr>,
-    },
+#[derive(Debug, Clone)]
+pub struct FunSignature {
+    pub keyword: Token,
+    pub name: Token,
+    pub parameters: Vec<FunParameter>,
+    pub return_type: VarType,
 }
 
-impl Expr {
-    pub fn str(value: String) -> Self {
-        Expr::Literal(Literal::Str(value))
-    }
-
-    pub fn float(value: String) -> Self {
-        Expr::Literal(Literal::Float(value.parse().unwrap()))
-    }
-
-    pub fn integer(value: String) -> Self {
-        Expr::Literal(Literal::Integer(value.parse().unwrap()))
-    }
-
-    pub fn bool(value: bool) -> Self {
-        Expr::Literal(Literal::Bool(value))
-    }
+#[derive(Debug, Clone)]
+pub struct FunParameter {
+    pub name: Token,
+    pub var_type: VarType,
 }
 
 #[derive(Debug)]
@@ -105,8 +28,9 @@ pub enum Literal {
     Str(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum VarType {
+    // Primitives
     Int64,
     Int32,
     Int16,
@@ -121,11 +45,20 @@ pub enum VarType {
     Bool,
     Char,
     Void,
+    SelfType,
     Unknown,
-    Pointer(Box<VarType>),
+
+    // Wrappers
+    Reference(Box<VarType>),
     Array(Box<VarType>),
     Named(Box<VarType>),
-    Struct { name: String },
+
+    // Struct
+    Struct { name: Token },
+
+    // Generics
+    GenericParam(Token),
+    GenericInstantiation { base: Token, args: Vec<VarType> },
 }
 
 impl VarType {
@@ -149,7 +82,7 @@ impl VarType {
             "bool" => VarType::Bool,
             "char" => VarType::Char,
             "void" => VarType::Void,
-            _ => VarType::Struct { name: token.lexeme },
+            _ => VarType::Struct { name: token },
         }
     }
 }

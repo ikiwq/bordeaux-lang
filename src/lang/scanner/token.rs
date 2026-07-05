@@ -39,15 +39,11 @@ pub enum TokenType {
     Null,
     Return,
     While,
-    Struct,
-    Self_,
     Pub,
     Let,
     Fun,
-    Comptime,
     False,
     True,
-    Type,
 
     EOF,
 }
@@ -89,7 +85,6 @@ impl TokenType {
     pub fn get_identifier_type(s: &str) -> TokenType {
         match s {
             "and" => TokenType::And,
-            "comptime" => TokenType::Comptime,
             "else" => TokenType::Else,
             "false" => TokenType::False,
             "for" => TokenType::For,
@@ -99,11 +94,8 @@ impl TokenType {
             "null" => TokenType::Null,
             "or" => TokenType::Or,
             "return" => TokenType::Return,
-            "struct" => TokenType::Struct,
-            "self" => TokenType::Self_,
             "true" => TokenType::True,
             "while" => TokenType::While,
-            "type" => TokenType::Type,
             _ => TokenType::Identifier,
         }
     }
