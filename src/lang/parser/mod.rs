@@ -4,7 +4,7 @@ use crate::lang::{
 };
 
 pub mod err;
-mod expressions;
+pub mod expressions;
 pub mod statements;
 pub mod types;
 

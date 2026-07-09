@@ -3,7 +3,7 @@ use crate::lang::{
     scanner::token::{Token, TokenType},
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Expr {
     Literal(Literal),
     Variable(Token),

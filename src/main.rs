@@ -1,6 +1,6 @@
 use std::fs;
 
-use crate::lang::{parser::Parser, scanner::Scanner};
+use crate::lang::{analyzer::Analyzer, parser::Parser, scanner::Scanner};
 
 pub mod lang;
 
@@ -27,5 +27,15 @@ fn main() {
         }
     };
 
-    println!("{:?}", program)
+    match Analyzer::analyze(program.clone()) {
+        Err(errs) => {
+            for err in errs {
+                println!("{}", err)
+            }
+            std::process::exit(1)
+        }
+        _ => {}
+    }
+
+    println!("{:?}", program);
 }

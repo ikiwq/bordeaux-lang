@@ -8,7 +8,7 @@ use crate::lang::{
     scanner::token::{Token, TokenType},
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Statement {
     Program(Vec<Statement>),
     Block {
@@ -155,10 +155,12 @@ impl Parser {
         let keyword = self.expect_token(TokenType::Let)?;
         let identifier = self.expect_token(TokenType::Identifier)?;
 
-        let mut next =
-            self.expect_tokens(&[TokenType::Colon, TokenType::Semicolon, TokenType::Equal])?;
+        self.expect_token(TokenType::Colon)?;
+        // No inference for now because i'm only at page 80 of the dragon book
+        let mut var_type = self.var_type()?;
 
-        let mut var_type = VarType::Unknown;
+        let mut next = self.expect_tokens(&[TokenType::Semicolon, TokenType::Equal])?;
+
         let mut initializer = None;
 
         if next.token_type == TokenType::Colon {
