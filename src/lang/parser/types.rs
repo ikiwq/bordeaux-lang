@@ -30,17 +30,8 @@ pub enum Literal {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum VarType {
-    // Primitives
     Int64,
-    // Int32,
-    // Int16,
-    // Int8,
-    // Uint64,
-    // Uint32,
-    // Uint16,
-    // Uint8,
-    // Float64,
-    Float32,
+    Float64,
     Str,
     Bool,
     Char,
@@ -54,6 +45,9 @@ pub enum VarType {
     // Wrappers
     Reference(Box<VarType>),
     Array(Box<VarType>),
+
+    // Unknown
+    Unknown,
 }
 
 impl std::fmt::Display for VarType {
@@ -61,15 +55,7 @@ impl std::fmt::Display for VarType {
         match self {
             // Primitives
             VarType::Int64 => write!(f, "i64"),
-            // VarType::Int32 => write!(f, "i32"),
-            // VarType::Int16 => write!(f, "i16"),
-            // VarType::Int8 => write!(f, "i8"),
-            // VarType::Uint64 => write!(f, "u64"),
-            // VarType::Uint32 => write!(f, "u32"),
-            // VarType::Uint16 => write!(f, "u16"),
-            // VarType::Uint8 => write!(f, "u8"),
-            // VarType::Float64 => write!(f, "f64"),
-            VarType::Float32 => write!(f, "f32"),
+            VarType::Float64 => write!(f, "f64"),
             VarType::Str => write!(f, "string"),
             VarType::Bool => write!(f, "bool"),
             VarType::Char => write!(f, "char"),
@@ -78,6 +64,7 @@ impl std::fmt::Display for VarType {
 
             VarType::Reference(inner) => write!(f, "&{}", inner),
             VarType::Array(inner) => write!(f, "[{}]", inner),
+            VarType::Unknown => write!(f, "unknown"),
         }
     }
 }
@@ -90,15 +77,7 @@ impl VarType {
     pub fn from_token(token: Token) -> VarType {
         match token.lexeme.as_str() {
             "int64" => VarType::Int64,
-            // "int32" => VarType::Int32,
-            // "int16" => VarType::Int16,
-            // "int8" => VarType::Int8,
-            // "uint64" => VarType::Uint64,
-            // "uint32" => VarType::Uint32,
-            // "uint16" => VarType::Uint16,
-            // "uint8" => VarType::Uint8,
-            // "float64" => VarType::Float64,
-            "float32" => VarType::Float32,
+            "float64" => VarType::Float64,
             "string" => VarType::Str,
             "bool" => VarType::Bool,
             "char" => VarType::Char,

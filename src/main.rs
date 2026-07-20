@@ -17,7 +17,7 @@ fn main() {
         }
     };
 
-    let program = match Parser::parse(tokens) {
+    let mut program = match Parser::parse(tokens) {
         Ok(p) => p,
         Err(errs) => {
             for err in errs {
@@ -27,7 +27,7 @@ fn main() {
         }
     };
 
-    match Analyzer::analyze(program.clone()) {
+    match Analyzer::analyze(&mut program) {
         Err(errs) => {
             for err in errs {
                 println!("{}", err)

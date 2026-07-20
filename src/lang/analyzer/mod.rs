@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::lang::{
     analyzer::err::AnalysisError,
     parser::{
-        expressions::Expr,
+        expressions::{CastKind, Expr},
         statements::Statement,
         types::{Literal, VarType},
     },
@@ -52,12 +52,12 @@ impl Analyzer {
         return Analyzer { environments };
     }
 
-    pub fn analyze(program: Statement) -> Result<(), Vec<AnalysisError>> {
+    pub fn analyze(program: &mut Statement) -> Result<(), Vec<AnalysisError>> {
         let mut analyzer = Analyzer::new();
         analyzer.analyze_inner(program)
     }
 
-    pub fn analyze_inner(&mut self, program: Statement) -> Result<(), Vec<AnalysisError>> {
+    pub fn analyze_inner(&mut self, program: &mut Statement) -> Result<(), Vec<AnalysisError>> {
         let mut errs = Vec::new();
 
         match program {
@@ -92,11 +92,11 @@ impl Analyzer {
                     }),
                     Err(e) => errs.push(e),
                 }
-                if let Err(e) = self.analyze_inner(*then_branch) {
+                if let Err(e) = self.analyze_inner(then_branch) {
                     errs.extend(e);
                 }
                 if let Some(actual_else) = else_branch {
-                    if let Err(e) = self.analyze_inner(*actual_else) {
+                    if let Err(e) = self.analyze_inner(actual_else) {
                         errs.extend(e);
                     }
                 }
@@ -112,7 +112,7 @@ impl Analyzer {
                     }),
                     Err(e) => errs.push(e),
                 }
-                if let Err(e) = self.analyze_inner(*body) {
+                if let Err(e) = self.analyze_inner(body) {
                     errs.extend(e);
                 }
             }
@@ -126,7 +126,7 @@ impl Analyzer {
             } => {
                 self.push_env();
 
-                if let Err(e) = self.analyze_inner(*init) {
+                if let Err(e) = self.analyze_inner(init) {
                     errs.extend(e);
                 }
 
@@ -141,7 +141,7 @@ impl Analyzer {
                 if let Err(e) = self.expression_type(increment) {
                     errs.push(e);
                 }
-                if let Err(e) = self.analyze_inner(*body) {
+                if let Err(e) = self.analyze_inner(body) {
                     errs.extend(e);
                 }
 
@@ -154,33 +154,29 @@ impl Analyzer {
                 initializer,
                 ..
             } => {
+                match self.expression_type(initializer) {
+                    Ok(init_type) => {
+                        if *var_type == VarType::Unknown {
+                            *var_type = init_type;
+                        } else if *var_type != init_type {
+                            errs.push(AnalysisError {
+                                message: format!(
+                                    "Type mismatch: cannot initialize {} with {}",
+                                    var_type, init_type
+                                ),
+                            });
+                        }
+                    }
+                    Err(e) => errs.push(e),
+                }
+
+                // Always prioritize the user's type definition
                 self.declare_var(identifier.clone(), var_type.clone());
 
-                if let Some(init_expr) = initializer {
-                    match self.expression_type(init_expr) {
-                        Ok(init_type) => {
-                            if var_type != init_type {
-                                errs.push(AnalysisError {
-                                    message: format!(
-                                        "Type mismatch: cannot initialize {} with {}",
-                                        var_type, init_type
-                                    ),
-                                });
-                            } else {
-                                if let Err(e) = self.define_var(identifier) {
-                                    errs.push(e);
-                                }
-                            }
-                        }
-                        Err(e) => errs.push(e),
-                    }
-                } else {
-                    if let Err(e) = self.define_var(identifier) {
-                        errs.push(e);
-                    }
+                if let Err(e) = self.define_var(identifier) {
+                    errs.push(e);
                 }
             }
-
             Statement::FunDeclaration { signature, body } => {
                 let fun_type = VarType::Function {
                     params: signature
@@ -192,20 +188,20 @@ impl Analyzer {
                 };
 
                 self.declare_var(signature.name.clone(), fun_type);
-                if let Err(e) = self.define_var(signature.name.clone()) {
+                if let Err(e) = self.define_var(&signature.name.clone()) {
                     errs.push(e);
                 }
 
                 self.push_env();
 
-                for param in signature.parameters {
+                for param in signature.parameters.clone() {
                     self.declare_var(param.name.clone(), param.var_type.clone());
-                    if let Err(e) = self.define_var(param.name) {
+                    if let Err(e) = self.define_var(&param.name) {
                         errs.push(e);
                     }
                 }
 
-                if let Err(e) = self.analyze_inner(*body) {
+                if let Err(e) = self.analyze_inner(body) {
                     errs.extend(e);
                 }
 
@@ -228,12 +224,12 @@ impl Analyzer {
         if errs.is_empty() { Ok(()) } else { Err(errs) }
     }
 
-    fn expression_type(&mut self, expression: Expr) -> Result<VarType, AnalysisError> {
+    fn expression_type(&mut self, expression: &mut Expr) -> Result<VarType, AnalysisError> {
         match expression {
             Expr::Literal(literal) => match literal {
                 Literal::Bool(_) => Ok(VarType::Bool),
                 Literal::Integer(_) => Ok(VarType::Int64),
-                Literal::Float(_) => Ok(VarType::Float32),
+                Literal::Float(_) => Ok(VarType::Float64),
                 Literal::Str(_) => Ok(VarType::Str),
             },
             Expr::Variable(identifier) => match self.get_var(identifier.clone()) {
@@ -247,16 +243,35 @@ impl Analyzer {
                 operator,
                 right,
             } => {
-                let left_type = self.expression_type(*left)?;
-                let right_type = self.expression_type(*right)?;
+                let mut left_type = self.expression_type(left)?;
+                let right_type = self.expression_type(right)?;
 
                 if left_type != right_type {
-                    return Err(AnalysisError {
-                        message: format!(
-                            "Cannot apply {} to {} and {}",
-                            operator.lexeme, left_type, right_type
-                        ),
-                    });
+                    if left_type == VarType::Float64 && right_type == VarType::Int64 {
+                        let old =
+                            std::mem::replace(right, Box::new(Expr::Literal(Literal::Integer(0))));
+                        *right = Box::new(Expr::Cast {
+                            expr: old,
+                            to: VarType::Float64,
+                            kind: CastKind::IntToFloat,
+                        });
+                    } else if left_type == VarType::Int64 && right_type == VarType::Float64 {
+                        let old =
+                            std::mem::replace(left, Box::new(Expr::Literal(Literal::Integer(0))));
+                        *left = Box::new(Expr::Cast {
+                            expr: old,
+                            to: VarType::Float64,
+                            kind: CastKind::IntToFloat,
+                        });
+                        left_type = VarType::Float64;
+                    } else {
+                        return Err(AnalysisError {
+                            message: format!(
+                                "Cannot apply {} to {} and {}",
+                                operator.lexeme, left_type, right_type
+                            ),
+                        });
+                    }
                 }
 
                 match operator.lexeme.as_str() {
@@ -264,13 +279,13 @@ impl Analyzer {
                     _ => Ok(left_type),
                 }
             }
-            Expr::Unary { right, .. } => self.expression_type(*right),
+            Expr::Unary { right, .. } => self.expression_type(right),
             Expr::Assign { name, value } => {
                 let current_var = self.get_var(name.clone()).ok_or_else(|| AnalysisError {
                     message: format!("Cannot assign undeclared variable {}", name.lexeme),
                 })?;
 
-                let val_type = self.expression_type(*value)?;
+                let val_type = self.expression_type(value)?;
 
                 if current_var.var_type != val_type {
                     return Err(AnalysisError {
@@ -285,7 +300,7 @@ impl Analyzer {
                 Ok(val_type)
             }
             Expr::Call { callee, arguments } => {
-                let callee_type = self.expression_type(*callee)?;
+                let callee_type = self.expression_type(callee)?;
 
                 match callee_type {
                     VarType::Function {
@@ -302,8 +317,8 @@ impl Analyzer {
                             });
                         }
 
-                        for (param_type, arg_expr) in params.iter().zip(arguments.iter()) {
-                            let arg_type = self.expression_type(arg_expr.clone())?;
+                        for (param_type, arg_expr) in params.iter().zip(arguments.iter_mut()) {
+                            let arg_type = self.expression_type(arg_expr)?;
                             if param_type != &arg_type {
                                 return Err(AnalysisError {
                                     message: format!(
@@ -321,18 +336,19 @@ impl Analyzer {
                     }),
                 }
             }
-            Expr::Grouping(expr) => self.expression_type(*expr),
+            Expr::Grouping(expr) => self.expression_type(expr),
+            Expr::Cast { .. } => panic!("Parser cannot insert casting"),
         }
     }
 
-    fn define_var(&mut self, identifier: Token) -> Result<(), AnalysisError> {
+    fn define_var(&mut self, identifier: &Token) -> Result<(), AnalysisError> {
         for env in self.environments.iter_mut().rev() {
             if let Some(existing) = env.get(&identifier.lexeme) {
                 let old_var_type = existing.var_type.clone();
                 env.insert(
                     identifier.lexeme.clone(),
                     VariableDefinition {
-                        identifier,
+                        identifier: identifier.clone(),
                         var_type: old_var_type,
                         defined: true,
                     },

@@ -1,5 +1,9 @@
 use crate::lang::{
-    parser::{Parser, err::ParserError, types::Literal},
+    parser::{
+        Parser,
+        err::ParserError,
+        types::{Literal, VarType},
+    },
     scanner::token::{Token, TokenType},
 };
 
@@ -25,6 +29,19 @@ pub enum Expr {
         name: Token,
         value: Box<Expr>,
     },
+    Cast {
+        expr: Box<Expr>,
+        to: VarType,
+        kind: CastKind,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub enum CastKind {
+    IntToFloat,
+    FloatToInt,
+    IntWiden,
+    FoatWiden,
 }
 
 impl Expr {

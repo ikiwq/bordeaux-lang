@@ -38,7 +38,7 @@ pub enum Statement {
         keyword: Token,
         identifier: Token,
         var_type: VarType,
-        initializer: Option<Expr>,
+        initializer: Expr,
     },
     FunDeclaration {
         signature: FunSignature,
@@ -155,23 +155,15 @@ impl Parser {
         let keyword = self.expect_token(TokenType::Let)?;
         let identifier = self.expect_token(TokenType::Identifier)?;
 
-        self.expect_token(TokenType::Colon)?;
-        // No inference for now because i'm only at page 80 of the dragon book
-        let mut var_type = self.var_type()?;
-
-        let mut next = self.expect_tokens(&[TokenType::Semicolon, TokenType::Equal])?;
-
-        let mut initializer = None;
-
-        if next.token_type == TokenType::Colon {
+        let mut var_type = VarType::Unknown;
+        if self.matches(TokenType::Colon) {
             var_type = self.var_type()?;
-            next = self.expect_tokens(&[TokenType::Equal, TokenType::Semicolon])?;
         }
 
-        if next.token_type == TokenType::Equal {
-            initializer = Some(self.expression()?);
-            self.expect_token(TokenType::Semicolon)?;
-        }
+        self.expect_token(TokenType::Equal)?;
+
+        let initializer = self.expression()?;
+        self.expect_token(TokenType::Semicolon)?;
 
         Ok(Statement::VarDeclaration {
             keyword,

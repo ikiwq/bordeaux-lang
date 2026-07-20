@@ -1,4 +1,4 @@
-let ITERATION_NUMBER: int64 = 16;
+let ITERATION_NUMBER: float64 = 16.0;
 
 fun fibonacci(n: int64): int64 {
     if n <= 1 {
@@ -9,11 +9,11 @@ fun fibonacci(n: int64): int64 {
 }
 
 fun main() {
-    for let i: int64 = 0; i < ITERATION_NUMBER; i = i + 1 {
+    for let i = 0; i < ITERATION_NUMBER; i = i + 1 {
         print("FIBONACCI ");
     }
 
-    let i: int64 = 0;
+    let i = 0;
     while i < 32 {
         print("WHILE");
         i = i + 1;
