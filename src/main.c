@@ -4,12 +4,14 @@
 #include <string.h>
 
 #include "analyzer/analyzer.h"
+#include "codegen/quad.h"
 #include "file/file.h"
 #include "scanner/scanner.h"
 #include "parser/parser.h"
 
 static bool parser_debug_mode = true;
 static bool analyzer_debug_mode = true;
+static bool icg_debug_mode = true;
 
 int main(const int argc, const char* argv[]) {
     if (argc != 2) {
@@ -68,7 +70,21 @@ int main(const int argc, const char* argv[]) {
         exit(64);
     }
 
+    // const icg_result_t icg_res = generate_quads(analyzer_res.stmts, analyzer_res.stmt_count);
     arena_destroy(&analyzer.arena);
+    //
+    // if (icg_debug_mode) {
+    //     printf("ICG output debug start \n\n");
+    //     print_quads(icg_res.quads, icg_res.quad_count);
+    //     printf("\nICG output debug end \n\n");
+    // }
+    // if (icg_res.err_count > 0) {
+    //     for (size_t i = 0; i < icg_res.err_count; i++) {
+    //         print_fe_err(src_file, icg_res.errs[i]);
+    //     }
+    //     exit(64);
+    // }
+
     free(src);
     return 0;
 }

@@ -120,13 +120,19 @@
         return vec->data[vec->size - 1]; \
     } \
     \
-    static inline T *VEC_FN(name, _at)(const VEC_STRUCT(name) *vec, size_t index) { \
+    static inline T VEC_FN(name, _at)(const VEC_STRUCT(name) *vec, size_t index) { \
         if (!vec || !vec->data) \
             VEC_DIE("received invalid vector while indexing", EINVAL); \
         if (index >= vec->size) \
             VEC_DIE("index out of bounds", ERANGE); \
     \
-        return &vec->data[index]; \
+        return vec->data[index]; \
+    } \
+    \
+    static inline T VEC_FN(name, _last)(const VEC_STRUCT(name) *vec) { \
+        if(vec->size == 0) \
+            VEC_DIE("vector is empty", ERANGE); \
+        return vec->data[vec->size - 1]; \
     } \
     \
     static inline void VEC_FN(name, _clear)(VEC_STRUCT(name) *vec) { \

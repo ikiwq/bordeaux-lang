@@ -18,7 +18,8 @@ static void init_parser(token_t*, size_t);
 
 static void panic_mode();
 
-static stmt_t *statement();
+static stmt_t *global_statement();
+static stmt_t *scoped_statement();
 static stmt_t *if_statement();
 static stmt_t *while_statement();
 static stmt_t *for_statement();
@@ -60,7 +61,7 @@ parser_result_t parse(token_t *tokens, const size_t token_count) {
     pstmt_vec_t statement_vec = pstmt_vec_init();
 
     while (has_more() && peek().kind != TOKEN_EOF) {
-        stmt_t *stmt = statement();
+        stmt_t *stmt = global_statement();
         if (!stmt) {
             panic_mode();
             continue;
@@ -144,7 +145,21 @@ static void make_err(const span_t span, const char *fmt, ...) {
     });
 }
 
-static stmt_t *statement() {
+static stmt_t *global_statement() {
+    const token_t next = peek();
+
+    switch (next.kind) {
+        case TOKEN_LET: return var_declaration_statement();
+        case TOKEN_FUN: return fun_declaration_statement();
+        default: {
+            advance();
+            make_err(next.span, "expected a declaration");
+            return nullptr;
+        }
+    }
+}
+
+static stmt_t *scoped_statement() {
     const token_t next = peek();
 
     switch (next.kind) {
@@ -179,7 +194,7 @@ static stmt_t *if_statement() {
         if (!else_branch) return nullptr;
     }
 
-    const size_t end = else_branch ? else_branch->span.end : then_branch->span.end;
+    const size_t end = else_branch != nullptr ? else_branch->span.end : then_branch->span.end;
 
     stmt_t *stmt = stmt_new();
     *stmt = (stmt_t) {
@@ -422,7 +437,7 @@ static stmt_t *block_statement() {
 
     pstmt_vec_t stmt_vec = pstmt_vec_init();
     while (has_more() && peek().kind != TOKEN_RIGHT_BRACE) {
-        stmt_t *stmt = statement();
+        stmt_t *stmt = scoped_statement();
         if (!stmt) goto fail;
         pstmt_vec_push(&stmt_vec, stmt);
     }
