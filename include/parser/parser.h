@@ -5,19 +5,17 @@
 #include "mem/arena.h"
 
 typedef struct {
-    token_t *tokens;
-    size_t token_count;
+    token_avec_t *token_avec;
     size_t current;
 
-    err_vec_t err_vec;
-    arena_t arena;
+    err_avec_t *err_avec;
+    arena_t *arena;
 } parser_t;
-
 
 typedef struct {
     token_t name;
     expr_t *type;
-} fun_parameter_t;
+} fnparam_t;
 
 typedef enum {
     STMT_IF,
@@ -31,14 +29,22 @@ typedef enum {
 
 typedef struct stmt stmt_t;
 
+#define AVEC_TYPE fnparam_t
+#define AVEC_NAME fnparam
+#include "dsa/arena_vec.h"
+
+#define AVEC_TYPE stmt_t*
+#define AVEC_NAME stmt
+#include "dsa/arena_vec.h"
+
 struct stmt {
     stmt_kind_t kind;
     span_t span;
 
     union {
         struct {
-            expr_t *condition;
-            stmt_t *then_branch;
+            stmt_avec_t *then_branches;
+            expr_avec_t *conditions;
             stmt_t *else_branch;
         } _if;
 
@@ -62,8 +68,7 @@ struct stmt {
 
         struct {
             token_t identifier;
-            fun_parameter_t *params;
-            size_t params_count;
+            fnparam_avec_t *params;
             expr_t *return_type;
             stmt_t *body;
         } fun_decl;
@@ -73,28 +78,21 @@ struct stmt {
             expr_t *value;
         } _return;
 
-        struct {
-            stmt_t **stmts;
-            size_t stmt_count;
-        } block;
+        stmt_avec_t *block;
 
         expr_t *expr;
     } as;
 };
 
 typedef struct {
-    fe_err_t *errs;
-    size_t err_count;
+    err_avec_t *err_avec;
+    stmt_avec_t *stmt_avec;
 
-    stmt_t **stmts;
-    size_t stmt_count;
-
-    arena_t arena;
+    arena_t *arena;
 } parser_result_t;
 
-parser_result_t parse(token_t *tokens, size_t token_count);
+parser_result_t parse(token_avec_t *token_avec);
 
-// Print statements and expression in a human readable format
-void print_statements(stmt_t **statements, size_t statement_count);
+void print_statements(stmt_avec_t *stmt_avec);
 
 #endif // PARSER_H

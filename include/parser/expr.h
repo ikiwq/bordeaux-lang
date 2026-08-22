@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "scanner/scanner.h"
+#include "scanner/token.h"
 
 // When storing literal during compilation, store always the widest possible type (for simplicity!).
 // When doing type checking, hopefully we can narrow the type of the variable down to the
@@ -49,6 +49,10 @@ typedef enum {
 
 typedef struct expr expr_t;
 
+#define AVEC_TYPE expr_t*
+#define AVEC_NAME expr
+#include "dsa/arena_vec.h"
+
 struct expr {
     expr_kind_t kind;
     span_t span;
@@ -59,10 +63,7 @@ struct expr {
         literal_t literal;
 
         // [value, value, value]
-        struct {
-            expr_t **elements;
-            size_t element_count;
-        } array_literal;
+        expr_avec_t *array_literal;
 
         // array[index]
         struct {
@@ -93,15 +94,14 @@ struct expr {
         // callee(args), with args_count = len(args)
         struct {
             expr_t *callee;
-            expr_t **args;
-            size_t args_count;
+            expr_avec_t *args;
         } call;
 
 
         // Types during parsing are considered syntactic expressions and therefore treated
         // as expressions and not as a separate data type.
         // A basic type expression like "int64" or "float64" (or even a struct name) is considered a type name.
-        // Type constructors are type expressions which result in a constructor applied to other type expressions.
+        // Type constructors are type expressions that apply a constructor to other type expressions.
 
         token_t type_name;
 

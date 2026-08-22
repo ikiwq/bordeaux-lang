@@ -4,64 +4,59 @@
 #include "parser/parser.h"
 #include "analyzer/expr.h"
 
-typedef struct {
-    token_t name;
-    type_t *type;
-} typed_fun_param_t;
+typedef struct tstmt tstmt_t;
 
-typedef struct typed_stmt typed_stmt_t;
+#define AVEC_TYPE tstmt_t*
+#define AVEC_NAME tstmt
+#include "dsa/arena_vec.h"
 
-struct typed_stmt {
+struct tstmt {
     stmt_kind_t kind;
     span_t span;
 
     union {
         struct {
-            typed_expr_t *condition;
-            typed_stmt_t *then_branch;
-            typed_stmt_t *else_branch;
+            texpr_t *condition;
+            tstmt_t *then_branch;
+            tstmt_t *else_branch;
         } _if;
 
         struct {
-            typed_expr_t *condition;
-            typed_stmt_t *body;
+            texpr_t *condition;
+            tstmt_t *body;
         } _while;
 
         struct {
-            typed_stmt_t *init;
-            typed_expr_t *condition;
-            typed_expr_t *increment;
-            typed_stmt_t *body;
+            tstmt_t *init;
+            texpr_t *condition;
+            texpr_t *increment;
+            tstmt_t *body;
         } _for;
 
         struct {
             token_t identifier;
-            typed_expr_t *initializer;
+            texpr_t *initializer;
             type_t *type;
         } var_decl;
 
         struct {
             token_t identifier;
-            typed_fun_param_t *params;
-            size_t param_count;
+            tfunparam_avec_t *params;
             type_t *return_type;
-            typed_stmt_t *body;
+            tstmt_t *body;
         } fun_decl;
 
         struct {
-            typed_expr_t *value;
+            texpr_t *value;
         } _return;
 
-        struct {
-            typed_stmt_t **stmts;
-            size_t stmt_count;
-        } block;
+        tstmt_avec_t *block;
 
-        typed_expr_t *expr;
+        texpr_t *expr;
     } as;
 };
 
-void print_typed_stmts(typed_stmt_t **stmts, size_t stmt_count);
+void print_tstmts(tstmt_avec_t*);
 
 #endif // ANALYZER_STATEMENT_H
 

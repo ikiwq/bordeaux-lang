@@ -1,0 +1,53 @@
+fun int_to_str(n: int32) -> string {
+    let negative = false;
+    if (n < 0) {
+        negative = true;
+        n = -n;
+    }
+
+    let str = "";
+    if (n == 0) {
+        str = "0";
+    } else {
+        while (n > 0) {
+            let digit = n % 10;
+            let digit_char = "0";
+
+            if (digit == 1) { digit_char = "1"; }
+            else if (digit == 2) { digit_char = "2"; }
+            else if (digit == 3) { digit_char = "3"; }
+            else if (digit == 4) { digit_char = "4"; }
+            else if (digit == 5) { digit_char = "5"; }
+            else if (digit == 6) { digit_char = "6"; }
+            else if (digit == 7) { digit_char = "7"; }
+            else if (digit == 8) { digit_char = "8"; }
+            else if (digit == 9) { digit_char = "9"; }
+
+            str = digit_char + str;
+            n = n / 10;
+        }
+    }
+
+    if (negative) {
+        str = "-" + str;
+    }
+
+    return str;
+}
+
+fun with_three_params(n1: int32, n2: int32, n3: int32) -> int32 {
+    return 5;
+}
+
+fun fibonacci(n: int32) -> int32 {
+    if(n <= 1) {
+        return n;
+    }
+
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+fun main() {
+    let fib = fibonacci(5);
+    print("fibonacci " + int_to_str(fib));
+}

@@ -10,7 +10,7 @@ static size_t align_size(size_t n, size_t a) {
     return (n + a - 1) & ~(a - 1);
 }
 
-arena_t arena_make(const size_t size) {
+arena_t *arena_make(const size_t size) {
     assert(size > 0);
 
     arena_t a;
@@ -37,7 +37,15 @@ arena_t arena_make(const size_t size) {
     a.reserved = size;
     a.used = 0;
 
-    return a;
+    arena_t *a_ptr = arena_alloc(&a, sizeof *a_ptr);
+    *a_ptr = (arena_t){
+        .committed = a.committed,
+        .base_ptr = a.base_ptr,
+        .reserved = a.reserved,
+        .used = a.used
+    };
+
+    return a_ptr;
 }
 
 void *arena_alloc(arena_t *a, const size_t size) {
@@ -86,7 +94,6 @@ void arena_destroy(arena_t *a) {
 #else
     munmap(a->base_ptr, a->reserved);
 #endif
-    *a = (arena_t){0};
 }
 
 void arena_reset(arena_t *a) {

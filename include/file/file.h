@@ -1,6 +1,8 @@
 #ifndef FILE_H
 #define FILE_H
 
-char* read_file(const char *path);
+#include "mem/arena.h"
+
+char* read_file(arena_t *arena, const char *path);
 
 #endif // FILE_H

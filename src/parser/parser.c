@@ -2,19 +2,11 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-
-#include "mem/mem.h"
 #include <string.h>
-
-#include "dsa/vector.h"
-
-VEC_DEFINE_H(stmt_t*, pstmt)
-VEC_DEFINE_H(fun_parameter_t, fnparam)
-VEC_DEFINE_H(expr_t*, pexpr)
 
 static parser_t parser;
 
-static void init_parser(token_t*, size_t);
+static void init_parser(token_avec_t*);
 
 static void panic_mode();
 
@@ -56,9 +48,9 @@ static token_t last();
 static token_t expect(token_kind_t expected);
 static bool matches(token_kind_t expected);
 
-parser_result_t parse(token_t *tokens, const size_t token_count) {
-    init_parser(tokens, token_count);
-    pstmt_vec_t statement_vec = pstmt_vec_init();
+parser_result_t parse(token_avec_t *token_avec) {
+    init_parser(token_avec);
+    stmt_avec_t *stmt_avec = stmt_avec_make(parser.arena);
 
     while (has_more() && peek().kind != TOKEN_EOF) {
         stmt_t *stmt = global_statement();
@@ -66,40 +58,22 @@ parser_result_t parse(token_t *tokens, const size_t token_count) {
             panic_mode();
             continue;
         }
-        pstmt_vec_push(&statement_vec, stmt);
+        stmt_avec_push(stmt_avec, stmt);
     }
-
-    const size_t err_count = parser.err_vec.size;
-    fe_err_t *errs =
-        arena_copy(&parser.arena, parser.err_vec.data, err_count * sizeof *errs);
-    err_vec_destroy(&parser.err_vec);
-
-    const size_t stmt_count = statement_vec.size;
-    stmt_t **stmts =
-        arena_copy(&parser.arena, statement_vec.data, stmt_count * sizeof *stmts);
-    pstmt_vec_destroy(&statement_vec);
-
-    const parser_result_t result = {
-        .errs = errs,
-        .err_count = err_count,
-        .stmts = stmts,
-        .stmt_count= stmt_count,
+    return (parser_result_t) {
+        .err_avec = parser.err_avec,
+        .stmt_avec = stmt_avec,
         .arena = parser.arena
     };
-
-    // Ensure that the arena is no longer used in this scope.
-    // The caller is still the owner of the arena
-    parser.arena = (arena_t){0};
-
-    return result;
 }
 
-static void init_parser(token_t *tokens, const size_t token_count) {
-    parser.tokens = tokens;
-    parser.token_count = token_count;
+static void init_parser(token_avec_t *token_avec) {
+    arena_t *arena = arena_make(1 << 30u);
+    parser.arena = arena;
+
+    parser.token_avec = token_avec;
     parser.current = 0;
-    parser.err_vec = err_vec_init();
-    parser.arena = arena_make(1 << 28u); // 256 MB
+    parser.err_avec = err_avec_make(arena);
 }
 
 static token_kind_t sync_tokens[] = {
@@ -132,14 +106,14 @@ static void make_err(const span_t span, const char *fmt, ...) {
     va_end(args);
     if (len < 0) return;
 
-    char *buf = arena_alloc(&parser.arena, (size_t)len + 1);
+    char *buf = arena_alloc(parser.arena, (size_t)len + 1);
     if (!buf) return;
 
     va_start(args, fmt);
     vsnprintf(buf, (size_t)len + 1, fmt, args);
     va_end(args);
 
-    err_vec_push(&parser.err_vec, (fe_err_t) {
+    err_avec_push(parser.err_avec, (fe_err_t) {
         .err = buf,
         .span = span
     });
@@ -149,11 +123,13 @@ static stmt_t *global_statement() {
     const token_t next = peek();
 
     switch (next.kind) {
-        case TOKEN_LET: return var_declaration_statement();
+        // Global variable declarations are a bit tricky, will have to spend
+        // a little bit of time designing the behaviour
+        // case TOKEN_LET: return var_declaration_statement();
         case TOKEN_FUN: return fun_declaration_statement();
         default: {
             advance();
-            make_err(next.span, "expected a declaration");
+            make_err(next.span, "expected a function declaration");
             return nullptr;
         }
     }
@@ -180,34 +156,60 @@ static stmt_t *if_statement() {
     const token_t keyword = expect(TOKEN_IF);
     if (keyword.kind == TOKEN_ERROR) return nullptr;
 
+    expr_avec_t *conditions_avec = expr_avec_make_cap(parser.arena, 2);
+    stmt_avec_t *then_branches_avec = stmt_avec_make_cap(parser.arena, 2);
+
     expr_t *condition = expression();
-    if (!condition) return nullptr;
+    if(!condition) return nullptr;
+    expr_avec_push(conditions_avec, condition);
 
     stmt_t *then_branch = block_statement();
-    if (!then_branch) return nullptr;
+    if(!then_branch) return nullptr;
+    stmt_avec_push(then_branches_avec, then_branch);
 
     stmt_t *else_branch = nullptr;
-    if (matches(TOKEN_ELSE)) {
-        advance();
 
-        else_branch = block_statement();
-        if (!else_branch) return nullptr;
+    while(matches(TOKEN_ELSE)) {
+        advance(); // Consume else
+
+        if(!matches(TOKEN_IF)) {
+            else_branch = block_statement();
+            if(!else_branch) return nullptr;
+
+            break;
+        }
+
+        advance(); // Consume if after the else (if else)
+        
+        expr_t *condition = expression();
+        if(!condition) return nullptr;
+
+        stmt_t *then_branch = block_statement();
+        if(!then_branch) return nullptr;
+
+        expr_avec_push(conditions_avec, condition);
+        stmt_avec_push(then_branches_avec, then_branch);
     }
 
-    const size_t end = else_branch != nullptr ? else_branch->span.end : then_branch->span.end;
+    size_t span_end;
+    if(else_branch != nullptr) {
+        span_end = else_branch->span.end;
+    } else {
+        span_end = stmt_avec_last(then_branches_avec)->span.end;
+    }
 
     stmt_t *stmt = stmt_new();
     *stmt = (stmt_t) {
         .kind = STMT_IF,
         .span = (span_t) {
             .src = keyword.span.src,
-            .length = end - keyword.span.start,
+            .length = span_end - keyword.span.start,
             .start = keyword.span.start,
-            .end = end
+            .end = span_end
         },
         .as._if = {
-            .condition = condition,
-            .then_branch = then_branch,
+            .conditions = conditions_avec,
+            .then_branches = then_branches_avec,
             .else_branch = else_branch,
         }
     };
@@ -229,9 +231,9 @@ static stmt_t *while_statement() {
         .kind = STMT_WHILE,
         .span = {
             .src = keyword.span.src,
-            .length = (body->span.end - keyword.span.start),
             .start = keyword.span.start,
-            .end = keyword.span.end
+            .end = body->span.end,
+            .length = (body->span.end - keyword.span.start),
         },
         .as._while= {
             .condition = condition,
@@ -301,49 +303,39 @@ static stmt_t *fun_declaration_statement() {
 
     if (expect(TOKEN_LEFT_PAREN).kind == TOKEN_ERROR) return nullptr;
 
-    fnparam_vec_t param_vec = fnparam_vec_init();
+    fnparam_avec_t *param_avec = fnparam_avec_make(parser.arena);
+
     if (peek().kind != TOKEN_RIGHT_PAREN) {
         for (;;) {
             const token_t param_name = expect(TOKEN_IDENTIFIER);
-            if (param_name.kind == TOKEN_ERROR) goto fail;
+            if (param_name.kind == TOKEN_ERROR) return nullptr;
 
-            if (expect(TOKEN_COLON).kind == TOKEN_ERROR) goto fail;
+            if (expect(TOKEN_COLON).kind == TOKEN_ERROR) return nullptr;
             expr_t *param_type = expr_type();
 
-            if (param_type == nullptr) goto fail;
+            if (param_type == nullptr) return nullptr;
 
-            const fun_parameter_t parameter = (fun_parameter_t) {
+            const fnparam_t param = {
                 .name = param_name,
                 .type = param_type,
             };
-            fnparam_vec_push(&param_vec, parameter);
+            fnparam_avec_push(param_avec, param);
             if (!matches(TOKEN_COMMA)) break;
             advance();
         }
     }
 
-    if (expect(TOKEN_RIGHT_PAREN).kind == TOKEN_ERROR) goto fail;
+    if (expect(TOKEN_RIGHT_PAREN).kind == TOKEN_ERROR) return nullptr;
 
     expr_t *return_type = nullptr;
-    if (matches(TOKEN_COLON)) {
+    if (matches(TOKEN_ARROW)) {
         advance();
         return_type = expr_type();
-        if (!return_type) goto fail;
+        if (!return_type) return nullptr;
     }
 
     stmt_t *body = block_statement();
-    if (!body) goto fail;
-
-    const size_t params_count = param_vec.size;
-    fun_parameter_t *params = nullptr;
-
-    // Move params from random heap to arena, so we can free it along the other nodes
-    if (params_count > 0) {
-        const size_t data_size = sizeof *params * param_vec.size;
-        params = arena_alloc(&parser.arena, data_size);
-        memcpy(params, param_vec.data, data_size);
-    }
-    fnparam_vec_destroy(&param_vec);
+    if (!body) return nullptr;
 
     stmt_t *stmt = stmt_new();
     *stmt = (stmt_t) {
@@ -356,17 +348,12 @@ static stmt_t *fun_declaration_statement() {
         },
         .as.fun_decl = {
             .identifier = identifier,
-            .params_count = params_count,
-            .params = params,
+            .params = param_avec,
             .return_type = return_type,
             .body = body
         }
     };
     return stmt;
-
-fail:
-    fnparam_vec_destroy(&param_vec);
-    return nullptr;
 }
 
 static stmt_t *var_declaration_statement() {
@@ -392,6 +379,12 @@ static stmt_t *var_declaration_statement() {
     stmt_t *stmt = stmt_new();
     *stmt = (stmt_t) {
         .kind = STMT_VAR_DECLARATION,
+        .span = {
+            .src = keyword.span.src,
+            .start = keyword.span.start,
+            .end = initializer->span.end,
+            .length = initializer->span.end - keyword.span.start
+        },
         .as.var_decl = {
             .identifier = identifier,
             .type = type,
@@ -435,19 +428,15 @@ static stmt_t *block_statement() {
     const token_t left_brace = expect(TOKEN_LEFT_BRACE);
     if (left_brace.kind == TOKEN_ERROR) return nullptr;
 
-    pstmt_vec_t stmt_vec = pstmt_vec_init();
+    stmt_avec_t *stmt_avec = stmt_avec_make(parser.arena);
     while (has_more() && peek().kind != TOKEN_RIGHT_BRACE) {
         stmt_t *stmt = scoped_statement();
-        if (!stmt) goto fail;
-        pstmt_vec_push(&stmt_vec, stmt);
+        if (!stmt) return nullptr;
+        stmt_avec_push(stmt_avec, stmt);
     }
 
     const token_t right_brace = expect(TOKEN_RIGHT_BRACE);
-    if (right_brace.kind == TOKEN_ERROR) goto fail;
-
-    const size_t statements_count = stmt_vec.size;
-    stmt_t **statements = arena_copy(&parser.arena, stmt_vec.data, statements_count * sizeof *statements);
-    pstmt_vec_destroy(&stmt_vec);
+    if (right_brace.kind == TOKEN_ERROR) return nullptr;
 
     stmt_t *stmt = stmt_new();
     *stmt = (stmt_t) {
@@ -458,16 +447,9 @@ static stmt_t *block_statement() {
             .start = left_brace.span.start,
             .end = right_brace.span.end
         },
-        .as.block = {
-            .stmts = statements,
-            .stmt_count = statements_count,
-        }
+        .as.block = stmt_avec
     };
     return stmt;
-
-fail:
-    pstmt_vec_destroy(&stmt_vec);
-    return nullptr;
 }
 
 static stmt_t *break_statement() {
@@ -514,7 +496,7 @@ static stmt_t *expression_statement() {
 }
 
 static stmt_t *stmt_new() {
-    return arena_alloc(&parser.arena, sizeof(stmt_t));
+    return arena_alloc(parser.arena, sizeof(stmt_t));
 }
 
 static expr_t *expression() {
@@ -602,7 +584,7 @@ static expr_t *expr_and() {
                 .src = left->span.src,
                 .length = right->span.end - left->span.start,
                 .start = left->span.start,
-                .end = right->span.start,
+                .end = right->span.end,
             },
             .as.binary = {
                 .left = left,
@@ -751,7 +733,7 @@ static expr_t *expr_factor() {
 }
 
 static token_kind_t unary_tokens[] = { TOKEN_MINUS, TOKEN_BANG, TOKEN_AND, TOKEN_AMPERSAND, TOKEN_STAR };
-bool is_unary_token(const token_t token) {
+static bool is_unary_token(const token_t token) {
     for (size_t i = 0; i < ARRAY_SIZE(unary_tokens); i++) {
         if (token.kind == unary_tokens[i]) return true;
     }
@@ -780,7 +762,7 @@ static expr_t *expr_unary() {
         if (!right) return nullptr;
 
         if (op.kind == TOKEN_AND) {
-            const token_t first_amp = (token_t) {
+            const token_t first_amp = {
                 .kind = TOKEN_AMPERSAND,
                 .span = {
                     .src = op.span.src,
@@ -789,7 +771,7 @@ static expr_t *expr_unary() {
                     .end = op.span.end + 1,
                 }
             };
-            const token_t second_amp = (token_t) {
+            const token_t second_amp = {
                 .kind = TOKEN_AMPERSAND,
                 .span = {
                     .src = op.span.src + 1,
@@ -842,24 +824,20 @@ static expr_t *expr_postfix() {
 }
 
 static expr_t *finish_call(expr_t *callee) {
-    pexpr_vec_t expr_vec = pexpr_vec_init();
+    expr_avec_t *args_avec = expr_avec_make_cap(parser.arena, 2);
 
     if (!matches(TOKEN_RIGHT_PAREN)) {
         for (;;) {
             expr_t *arg = expression();
-            if (!arg) goto fail;
-            pexpr_vec_push(&expr_vec, arg);
+            if (!arg) return nullptr;
+            expr_avec_push(args_avec, arg);
 
             if (!matches(TOKEN_COMMA)) break;
             advance();
         }
     }
     const token_t right_paren = expect(TOKEN_RIGHT_PAREN);
-    if (right_paren.kind == TOKEN_ERROR) goto fail;
-
-    const size_t args_count = expr_vec.size;
-    expr_t **args = arena_copy(&parser.arena, expr_vec.data, sizeof(expr_t*) * args_count);
-    pexpr_vec_destroy(&expr_vec);
+    if (right_paren.kind == TOKEN_ERROR) return nullptr;
 
     expr_t *expr = expr_make();
     *expr = (expr_t) {
@@ -872,15 +850,11 @@ static expr_t *finish_call(expr_t *callee) {
         },
         .as.call = {
             .callee = callee,
-            .args = args,
-            .args_count = args_count
+            .args = args_avec
         }
     };
 
     return expr;
-fail:
-    pexpr_vec_destroy(&expr_vec);
-    return nullptr;
 }
 
 static expr_t *expr_primary() {
@@ -981,13 +955,13 @@ static expr_t *expr_primary() {
 }
 
 static expr_t *array_literal(token_t left_bracket) {
-    pexpr_vec_t elems = pexpr_vec_init();
+    expr_avec_t *element_avec = expr_avec_make_cap(parser.arena, 2);
 
     if (!matches(TOKEN_RIGHT_BRACKET)) {
         for (;;) {
             expr_t *el = expression();
-            if (!el) goto fail;
-            pexpr_vec_push(&elems, el);
+            if (!el) return nullptr;
+            expr_avec_push(element_avec, el);
 
             if (!matches(TOKEN_COMMA)) break;
             advance();
@@ -995,32 +969,24 @@ static expr_t *array_literal(token_t left_bracket) {
     }
 
     const token_t right_bracket = expect(TOKEN_RIGHT_BRACKET);
-    if (right_bracket.kind == TOKEN_ERROR) goto fail;
-
-    const size_t count = elems.size;
-    expr_t **items = arena_copy(&parser.arena, elems.data, sizeof *items * count);
-    pexpr_vec_destroy(&elems);
+    if (right_bracket.kind == TOKEN_ERROR) return nullptr;
 
     expr_t *expr = expr_make();
     *expr = (expr_t){
         .kind = EXPR_ARR_LITERAL,
         .span = {
             .src = left_bracket.span.src,
-            .length = left_bracket.span.length,
+            .length = right_bracket.span.end - left_bracket.span.start,
             .start = left_bracket.span.start,
             .end = right_bracket.span.end
         },
-        .as.array_literal = { .elements = items, .element_count = count },
+        .as.array_literal = element_avec
     };
     return expr;
-
-fail:
-    pexpr_vec_destroy(&elems);
-    return nullptr;
 }
 
 static expr_t *expr_make() {
-    return arena_alloc(&parser.arena, sizeof(expr_t));
+    return arena_alloc(parser.arena, sizeof(expr_t));
 }
 
 static expr_t *expr_type() {
@@ -1152,19 +1118,19 @@ static expr_t *expr_type() {
 }
 
 static bool has_more() {
-    return parser.current < parser.token_count;
+    return parser.current < parser.token_avec->size;
 }
 
 static token_t advance() {
-    return parser.tokens[parser.current++];
+    return parser.token_avec->data[parser.current++];
 }
 
 static token_t peek() {
-    return parser.tokens[parser.current];
+    return parser.token_avec->data[parser.current];
 }
 
 static token_t last() {
-    return parser.tokens[parser.token_count - 1];
+    return token_avec_last(parser.token_avec);
 }
 
 static token_t expect(const token_kind_t expected) {

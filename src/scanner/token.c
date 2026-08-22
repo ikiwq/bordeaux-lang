@@ -27,6 +27,7 @@ const char *token_kind_to_str(const token_kind_t k) {
         case TOKEN_LESS:          return "<";
         case TOKEN_LESS_EQUAL:    return "<=";
         case TOKEN_MODULO:        return "%";
+        case TOKEN_ARROW:         return "->";
 
         case TOKEN_AND:           return "&&";
         case TOKEN_OR:            return "||";
@@ -56,8 +57,17 @@ const char *token_kind_to_str(const token_kind_t k) {
     }
 }
 
+static token_kind_t comparing_tokens[] = {
+    TOKEN_EQUAL_EQUAL, TOKEN_BANG_EQUAL,
+    TOKEN_LESS, TOKEN_LESS_EQUAL,
+    TOKEN_GREATER, TOKEN_GREATER_EQUAL
+};
+
 bool is_comparing_token(const token_kind_t k) {
-    return k == TOKEN_EQUAL_EQUAL || k == TOKEN_BANG_EQUAL;
+    for(size_t i = 0; i < ARRAY_SIZE(comparing_tokens); i++) {
+        if(k == comparing_tokens[i]) return true;
+    }
+    return false;
 }
 
 static token_kind_t computing_tokens[] = {

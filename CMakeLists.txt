@@ -12,3 +12,5 @@ add_executable(bordeaux ${SOURCES})
 target_include_directories(bordeaux PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+target_link_libraries(bordeaux m)

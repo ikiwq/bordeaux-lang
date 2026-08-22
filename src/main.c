@@ -1,17 +1,17 @@
-#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "analyzer/analyzer.h"
-#include "codegen/quad.h"
+#include "asm/emitter.h"
 #include "file/file.h"
+#include "mem/arena.h"
+
+#include "analyzer/analyzer.h"
 #include "scanner/scanner.h"
 #include "parser/parser.h"
 
 static bool parser_debug_mode = true;
 static bool analyzer_debug_mode = true;
-static bool icg_debug_mode = true;
 
 int main(const int argc, const char* argv[]) {
     if (argc != 2) {
@@ -19,72 +19,73 @@ int main(const int argc, const char* argv[]) {
         exit(64);
     }
 
+    arena_t *file_arena = arena_make(1 << 30u);
     const char *path = argv[1];
-    char *src = read_file(path);
-    src_file_t src_file = (src_file_t) {
+    char *src = read_file(file_arena, path);
+    src_file_t src_file = {
         .path = path,
         .src = src,
         .len = strlen(src),
-        .line_vec = line_vec_init()
+        .line_avec = line_avec_make(file_arena)
     };
 
-    scanner_result_t scanner_res = scan(&src_file);
+    scanner_result_t scanner_res = scan(src_file);
 
-    if (scanner_res.err_count > 0) {
-        for (size_t i = 0; i < scanner_res.err_count; i++) {
-            print_fe_err(src_file, scanner_res.errs[i]);
-        }
-        arena_destroy(&scanner_res.arena);
+    if(scanner_res.err_avec->size > 0) {
+        print_fe_errs(src_file, scanner_res.err_avec);
+
+        arena_destroy(scanner_res.arena);
+        arena_destroy(file_arena);
         exit(64);
     }
 
-    parser_result_t parser_res = parse(scanner_res.tokens, scanner_res.token_count);
-    arena_destroy(&scanner_res.arena);
+    parser_result_t parser_res = parse(scanner_res.token_avec);
+    arena_destroy(scanner_res.arena);
 
     if (parser_debug_mode) {
         printf("Parser output debug start\n\n");
-        print_statements(parser_res.stmts, parser_res.stmt_count);
+        print_statements(parser_res.stmt_avec);
         printf("\nParser output debug end\n\n");
     }
-    if (parser_res.err_count > 0) {
-        for (size_t i = 0; i < parser_res.err_count; i++) {
-            print_fe_err(src_file, parser_res.errs[i]);
-        }
-        arena_destroy(&scanner_res.arena);
+    if (parser_res.err_avec->size> 0) {
+        print_fe_errs(src_file, parser_res.err_avec);
+
+        arena_destroy(parser_res.arena);
+        arena_destroy(file_arena);
         exit(64);
     }
 
-    const analyzer_result_t analyzer_res = analyze(parser_res.stmts, parser_res.stmt_count);
-    arena_destroy(&parser_res.arena);
+    analyzer_result_t analyzer_res = analyze(parser_res.stmt_avec);
+    arena_destroy(parser_res.arena);
 
     if (analyzer_debug_mode) {
         printf("Analyzer output debug start\n\n");
-        print_typed_stmts(analyzer_res.stmts, analyzer_res.stmt_count);
+        print_tstmts(analyzer_res.tstmt_avec);
         printf("\nAnalyzer output debug end\n\n");
     }
-    if (analyzer_res.err_count > 0) {
-        for (size_t i = 0; i < analyzer_res.err_count; i++) {
-            print_fe_err(src_file, analyzer_res.errs[i]);
-        }
-        arena_destroy(&analyzer.arena);
+    if (analyzer_res.err_avec->size > 0) {
+        print_fe_errs(src_file, analyzer_res.err_avec);
+
+        arena_destroy(analyzer_res.arena);
+        arena_destroy(file_arena);
         exit(64);
     }
 
-    // const icg_result_t icg_res = generate_quads(analyzer_res.stmts, analyzer_res.stmt_count);
-    arena_destroy(&analyzer.arena);
-    //
-    // if (icg_debug_mode) {
-    //     printf("ICG output debug start \n\n");
-    //     print_quads(icg_res.quads, icg_res.quad_count);
-    //     printf("\nICG output debug end \n\n");
-    // }
-    // if (icg_res.err_count > 0) {
-    //     for (size_t i = 0; i < icg_res.err_count; i++) {
-    //         print_fe_err(src_file, icg_res.errs[i]);
-    //     }
-    //     exit(64);
-    // }
 
-    free(src);
+    char target[256];
+    strncpy(target, path, sizeof(target) - 1);
+    target[sizeof(target) - 1] = '\0';
+    char *dot = strrchr(target, '.');
+    if (dot != NULL && (dot - target) < (256 - 5)) {
+        strcpy(dot, ".asm");
+    } else {
+        strcat(target, ".asm"); 
+    }
+
+    emit_asm(target, analyzer_res.tstmt_avec);
+
+    arena_destroy(analyzer_res.arena);
+    arena_destroy(file_arena);
+
     return 0;
 }

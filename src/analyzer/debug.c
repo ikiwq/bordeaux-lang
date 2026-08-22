@@ -2,12 +2,12 @@
 
 #include <inttypes.h>
 
-static void print_typed_statement(const typed_stmt_t *, size_t);
-static void print_typed_expression(const typed_expr_t *, size_t);
+static void print_typed_statement(const tstmt_t*, size_t level);
+static void print_typed_expression(const texpr_t*, size_t level);
 
-void print_typed_stmts(typed_stmt_t **stmts, const size_t stmt_count) {
-    for (size_t i = 0; i < stmt_count; i++) {
-        print_typed_statement(stmts[i], 0);
+void print_tstmts(tstmt_avec_t *tstmt_avec) {
+    AVEC_FOREACH(tstmt, tstmt_avec) {
+        print_typed_statement(tstmt, 0);
     }
 }
 
@@ -20,13 +20,23 @@ static void print_type(const type_t *type) {
         printf("<null type>");
         return;
     }
+    if (type->kind == TY_FUNCTION) {
+        printf("fun<");
+        AVEC_FOREACH(param, type->as.function.params) {
+            print_type(param.type);
+        }
+        printf("> -> ");
+        print_type(type->as.function.return_type);
+        return;
+    }
 
     printf("%s", type->lexeme);
 }
 
 static void print_type_suffix(const type_t *type) {
-    printf(" : ");
+    printf(" (");
     print_type(type);
+    printf(") ");
 }
 
 static void print_type_line(const type_t *type, const size_t level) {
@@ -35,7 +45,7 @@ static void print_type_line(const type_t *type, const size_t level) {
     printf("\n");
 }
 
-static void print_typed_expression(const typed_expr_t *expr, const size_t level) {
+static void print_typed_expression(const texpr_t *expr, const size_t level) {
     indent(level);
     if (expr == nullptr) {
         printf("<null expr>\n");
@@ -43,14 +53,14 @@ static void print_typed_expression(const typed_expr_t *expr, const size_t level)
     }
 
     switch (expr->kind) {
-        case TY_EXPR_IDENTIFIER:
-            printf("Name: %.*s",
+        case TEXPR_IDENTIFIER:
+            printf("Identifier: %.*s",
                 (int)expr->as.identifier.span.length, expr->as.identifier.span.src);
             print_type_suffix(expr->type);
             printf("\n");
             break;
 
-        case TY_EXPR_LITERAL:
+        case TEXPR_LITERAL:
             switch (expr->as.literal.kind) {
                 case LIT_INTEGER: printf("Int: %" PRIu64, expr->as.literal._int); break;
                 case LIT_FLOAT:   printf("Float: %g", expr->as.literal._float); break;
@@ -65,7 +75,7 @@ static void print_typed_expression(const typed_expr_t *expr, const size_t level)
             printf("\n");
             break;
 
-        // case TY_EXPR_ARR_LITERAL:
+        // case TEXPR_ARR_LITERAL:
         //     printf("ArrayLiteral (%zu)", expr->as.array_literal.element_count);
         //     print_type_suffix(expr->type);
         //     printf("\n");
@@ -74,7 +84,7 @@ static void print_typed_expression(const typed_expr_t *expr, const size_t level)
         //     }
         //     break;
 
-        case TY_EXPR_INDEX:
+        case TEXPR_INDEX:
             printf("Index");
             print_type_suffix(expr->type);
             printf("\n");
@@ -84,7 +94,7 @@ static void print_typed_expression(const typed_expr_t *expr, const size_t level)
             print_typed_expression(expr->as.index.index, level + 2);
             break;
 
-        case TY_EXPR_UNARY:
+        case TEXPR_UNARY:
             printf("Unary '%.*s'",
                 (int)expr->as.unary.op.span.length, expr->as.unary.op.span.src);
             print_type_suffix(expr->type);
@@ -92,14 +102,14 @@ static void print_typed_expression(const typed_expr_t *expr, const size_t level)
             print_typed_expression(expr->as.unary.right, level + 1);
             break;
 
-        case TY_EXPR_GROUP:
+        case TEXPR_GROUP:
             printf("Group");
             print_type_suffix(expr->type);
             printf("\n");
             print_typed_expression(expr->as.group.inner, level + 1);
             break;
 
-        case TY_EXPR_BINARY:
+        case TEXPR_BINARY:
             printf("Binary '%.*s'",
                 (int)expr->as.binary.op.span.length, expr->as.binary.op.span.src);
             print_type_suffix(expr->type);
@@ -108,15 +118,18 @@ static void print_typed_expression(const typed_expr_t *expr, const size_t level)
             print_typed_expression(expr->as.binary.right, level + 1);
             break;
 
-        case TY_EXPR_CALL:
-            printf("Call (%zu args)", expr->as.call.args_count);
+        case TEXPR_CALL:
+            printf("Call (%zu args)", expr->as.call.args->size);
             print_type_suffix(expr->type);
             printf("\n");
             indent(level + 1); printf("callee:\n");
             print_typed_expression(expr->as.call.callee, level + 2);
-            for (size_t i = 0; i < expr->as.call.args_count; i++) {
+
+            size_t i = 0;
+            AVEC_FOREACH(arg, expr->as.call.args) {
                 indent(level + 1); printf("arg %zu:\n", i);
-                print_typed_expression(expr->as.call.args[i], level + 2);
+                print_typed_expression(arg, level + 2);
+                i++;
             }
             break;
 
@@ -126,7 +139,7 @@ static void print_typed_expression(const typed_expr_t *expr, const size_t level)
     }
 }
 
-static void print_typed_statement(const typed_stmt_t *stmt, const size_t level) {
+static void print_typed_statement(const tstmt_t *stmt, const size_t level) {
     indent(level);
     if (stmt == nullptr) {
         printf("<null stmt>\n");
@@ -134,7 +147,7 @@ static void print_typed_statement(const typed_stmt_t *stmt, const size_t level) 
     }
 
     switch (stmt->kind) {
-        case STMT_VAR_DECLARATION:
+        case STMT_VAR_DECLARATION: {
             printf("VarDecl '%.*s'\n",
                 (int)stmt->as.var_decl.identifier.span.length,
                 stmt->as.var_decl.identifier.span.src);
@@ -147,17 +160,18 @@ static void print_typed_statement(const typed_stmt_t *stmt, const size_t level) 
             indent(level + 1); printf("init:\n");
             print_typed_expression(stmt->as.var_decl.initializer, level + 2);
             break;
+        }
 
-        case STMT_FUN_DECLARATION:
+        case STMT_FUN_DECLARATION: {
             printf("FunDecl '%.*s' (%zu params)\n",
                 (int)stmt->as.fun_decl.identifier.span.length,
                 stmt->as.fun_decl.identifier.span.src,
-                stmt->as.fun_decl.param_count);
-            for (size_t i = 0; i < stmt->as.fun_decl.param_count; i++) {
-                const typed_fun_param_t p = stmt->as.fun_decl.params[i];
+                stmt->as.fun_decl.params->size);
+
+            AVEC_FOREACH(param, stmt->as.fun_decl.params) {
                 indent(level + 1);
-                printf("param '%.*s':\n", (int)p.name.span.length, p.name.span.src);
-                print_type_line(p.type, level + 2);
+                printf("param '%.*s':\n", (int)param.name.span.length, param.name.span.src);
+                print_type_line(param.type, level + 2);
             }
             indent(level + 1); printf("returns:\n");
             if (stmt->as.fun_decl.return_type != nullptr) {
@@ -168,28 +182,31 @@ static void print_typed_statement(const typed_stmt_t *stmt, const size_t level) 
             indent(level + 1); printf("body:\n");
             print_typed_statement(stmt->as.fun_decl.body, level + 2);
             break;
+        }
 
-        case STMT_IF:
-            printf("If\n");
-            indent(level + 1); printf("cond:\n");
-            print_typed_expression(stmt->as._if.condition, level + 2);
+        case STMT_IF: {
+            printf("If \n");
+
             indent(level + 1); printf("then:\n");
             print_typed_statement(stmt->as._if.then_branch, level + 2);
+
             if (stmt->as._if.else_branch != nullptr) {
                 indent(level + 1); printf("else:\n");
                 print_typed_statement(stmt->as._if.else_branch, level + 2);
             }
             break;
+        }
 
-        case STMT_WHILE:
+        case STMT_WHILE: {
             printf("While\n");
             indent(level + 1); printf("cond:\n");
             print_typed_expression(stmt->as._while.condition, level + 2);
             indent(level + 1); printf("body:\n");
             print_typed_statement(stmt->as._while.body, level + 2);
             break;
+        }
 
-        case STMT_FOR:
+        case STMT_FOR: {
             printf("For\n");
             indent(level + 1); printf("init:\n");
             print_typed_statement(stmt->as._for.init, level + 2);
@@ -200,8 +217,9 @@ static void print_typed_statement(const typed_stmt_t *stmt, const size_t level) 
             indent(level + 1); printf("body:\n");
             print_typed_statement(stmt->as._for.body, level + 2);
             break;
+        }
 
-        case STMT_RETURN:
+        case STMT_RETURN: {
             printf("Return\n");
             if (stmt->as._return.value != nullptr) {
                 print_typed_expression(stmt->as._return.value, level + 1);
@@ -209,24 +227,28 @@ static void print_typed_statement(const typed_stmt_t *stmt, const size_t level) 
                 indent(level + 1); printf("<void>\n");
             }
             break;
+        }
 
-        case STMT_BLOCK:
-            printf("Block (%zu)\n", stmt->as.block.stmt_count);
-            for (size_t i = 0; i < stmt->as.block.stmt_count; i++) {
-                print_typed_statement(stmt->as.block.stmts[i], level + 1);
+        case STMT_BLOCK: {
+            printf("Block (%zu)\n", stmt->as.block->size);
+            AVEC_FOREACH(tstmt, stmt->as.block) {
+                print_typed_statement(tstmt, level + 1);
             }
             break;
+        }
 
         case STMT_BREAK:    printf("Break\n"); break;
         case STMT_CONTINUE: printf("Continue\n"); break;
 
-        case STMT_EXPR:
+        case STMT_EXPR: {
             printf("ExprStmt\n");
             print_typed_expression(stmt->as.expr, level + 1);
             break;
+        }
 
-        default:
+        default: {
             printf("<Unknown statement kind %d>\n", (int)stmt->kind);
             break;
+        }
     }
 }

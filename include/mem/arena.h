@@ -1,7 +1,7 @@
 #ifndef ARENA_H
 #define ARENA_H
 
-#define ARENA_DEFAULT_ALIGN 16
+#define ARENA_DEFAULT_ALIGN 8
 
 #ifdef _WIN32
     #include <windows.h>
@@ -16,7 +16,7 @@ typedef struct {
     size_t used;
 } arena_t;
 
-arena_t arena_make(size_t size);
+arena_t *arena_make(size_t size);
 void *arena_alloc(arena_t *a, size_t size);
 void *arena_alloc_aligned(arena_t *a, size_t size, size_t align);
 void *arena_copy(arena_t *a, const void *src, size_t size);

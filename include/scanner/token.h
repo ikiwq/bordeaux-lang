@@ -17,7 +17,7 @@ typedef enum {
     TOKEN_EQUAL, TOKEN_EQUAL_EQUAL,
     TOKEN_GREATER, TOKEN_GREATER_EQUAL,
     TOKEN_LESS, TOKEN_LESS_EQUAL,
-    TOKEN_MODULO,
+    TOKEN_MODULO, TOKEN_ARROW,
 
     TOKEN_IDENTIFIER, TOKEN_STRING, TOKEN_INTEGER, TOKEN_FLOAT, TOKEN_CHAR, TOKEN_FALSE, TOKEN_TRUE,
 
@@ -49,5 +49,9 @@ typedef struct {
         double float_val;
     } attr;
 } token_t;
+
+#define AVEC_TYPE token_t
+#define AVEC_NAME token
+#include "dsa/arena_vec.h"
 
 #endif // TOKEN_H

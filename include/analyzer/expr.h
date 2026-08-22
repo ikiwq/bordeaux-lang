@@ -5,19 +5,23 @@
 #include "analyzer/types.h"
 
 typedef enum {
-    TY_EXPR_IDENTIFIER,
-    TY_EXPR_LITERAL,
-    TY_EXPR_INDEX,
-    TY_EXPR_UNARY,
-    TY_EXPR_BINARY,
-    TY_EXPR_GROUP,
-    TY_EXPR_CALL
-} typed_expr_kind_t;
+    TEXPR_IDENTIFIER,
+    TEXPR_LITERAL,
+    TEXPR_INDEX,
+    TEXPR_UNARY,
+    TEXPR_BINARY,
+    TEXPR_GROUP,
+    TEXPR_CALL
+} texpr_kind_t;
 
-typedef struct typed_expr typed_expr_t;
+typedef struct texpr texpr_t;
 
-struct typed_expr {
-    typed_expr_kind_t kind;
+#define AVEC_TYPE texpr_t*
+#define AVEC_NAME texpr
+#include "dsa/arena_vec.h"
+
+struct texpr {
+    texpr_kind_t kind;
     span_t span;
     type_t *type;
 
@@ -25,34 +29,30 @@ struct typed_expr {
         token_t identifier;
         literal_t literal;
 
-        struct {
-            typed_expr_t **elements;
-            size_t element_count;
-        } array_literal;
+        texpr_avec_t array_literal;
 
         struct {
-            typed_expr_t *array, *index;
+            texpr_t *array, *index;
         } index;
 
         struct {
             token_t op;
-            typed_expr_t *right;
+            texpr_t *right;
         } unary;
 
         struct {
-            typed_expr_t *left;
+            texpr_t *left;
             token_t op;
-            typed_expr_t *right;
+            texpr_t *right;
         } binary;
 
         struct {
-            typed_expr_t *inner;
+            texpr_t *inner;
         } group;
 
         struct {
-            typed_expr_t *callee;
-            typed_expr_t **args;
-            size_t args_count;
+            texpr_t *callee;
+            texpr_avec_t *args;
         } call;
     } as;
 };

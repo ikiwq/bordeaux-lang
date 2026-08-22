@@ -1,3 +1,5 @@
+#include "file/file.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -6,7 +8,7 @@ static void file_err(const char* path) {
     exit(74);
 }
 
-char* read_file(const char *path) {
+char* read_file(arena_t *arena, const char *path) {
     FILE* file = fopen(path, "rb");
     if (file == nullptr) {
         file_err(path);
@@ -16,7 +18,7 @@ char* read_file(const char *path) {
     const size_t file_size = ftell(file);
     rewind(file);
 
-    char *buffer = malloc(file_size + 1);
+    char *buffer = arena_alloc(arena, file_size + 1);
     if(buffer == nullptr) {
         file_err(path);
     }

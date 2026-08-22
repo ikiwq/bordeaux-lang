@@ -9,7 +9,7 @@
 
 static scanner_t scanner;
 
-static void scanner_init(src_file_t *src_file);
+static void scanner_init(src_file_t src_file);
 static void skip_whitespace();
 
 static void scan_string();
@@ -28,7 +28,7 @@ static char peek();
 static char peek_next();
 static char advance();
 
-scanner_result_t scan(src_file_t *src_file) {
+scanner_result_t scan(src_file_t src_file) {
     scanner_init(src_file);
 
     while (has_more()) {
@@ -69,6 +69,15 @@ scanner_result_t scan(src_file_t *src_file) {
             make_token(TOKEN_PIPE);
             continue;
         }
+        if(c == '-') {
+            if(peek() == '>') {
+                advance();
+                make_token(TOKEN_ARROW);
+                continue;
+            }
+            make_token(TOKEN_MINUS);
+            continue;
+        }
 
         if (c == '"') {
             scan_string();
@@ -99,7 +108,6 @@ scanner_result_t scan(src_file_t *src_file) {
             case '}': make_token(TOKEN_RIGHT_BRACE); break;
             case ',': make_token(TOKEN_COMMA); break;
             case '.': make_token(TOKEN_DOT); break;
-            case '-': make_token(TOKEN_MINUS); break;
             case '+': make_token(TOKEN_PLUS); break;
             case ':': make_token(TOKEN_COLON); break;
             case ';': make_token(TOKEN_SEMICOLON); break;
@@ -115,44 +123,27 @@ scanner_result_t scan(src_file_t *src_file) {
     }
 
     make_token(TOKEN_EOF);
-
-    const size_t token_count = scanner.t_vec.size;
-    token_t *tokens =
-        arena_copy(&scanner.arena, scanner.t_vec.data, token_count * sizeof *tokens);
-    token_vec_destroy(&scanner.t_vec);
-
-    const size_t errs_count = scanner.err_vec.size;
-    fe_err_t *errs =
-        arena_copy(&scanner.arena, scanner.err_vec.data, errs_count * sizeof *errs);
-    err_vec_destroy(&scanner.err_vec);
-
-    const scanner_result_t res = (scanner_result_t) {
-        .err_count = errs_count,
-        .errs = errs,
-        .token_count = token_count,
-        .tokens = tokens,
+    
+    return (scanner_result_t) {
+        .token_avec = scanner.token_avec,
+        .err_avec = scanner.err_avec,
         .arena = scanner.arena
     };
-
-    // Ensure that the arena is no longer used in this scope.
-    // The ownership is passed through the return of the result
-    scanner.arena = (arena_t){0};
-
-    return res;
 }
 
-static void scanner_init(src_file_t *src_file) {
+static void scanner_init(src_file_t src_file) {
     scanner.src_file = src_file;
-    line_vec_push(&src_file->line_vec, 0);
+    line_avec_push(src_file.line_avec, 0);
 
-    scanner.src = src_file->src;
-    scanner.start = src_file->src;
-    scanner.current = src_file->src;
+    scanner.src = src_file.src;
+    scanner.start = src_file.src;
+    scanner.current = src_file.src;
 
-    scanner.t_vec = token_vec_init();
-    scanner.err_vec = err_vec_init();
+    arena_t *arena = arena_make(1 << 30u);
 
-    scanner.arena = arena_make(1u << 28);
+    scanner.arena = arena;
+    scanner.token_avec = token_avec_make(arena);
+    scanner.err_avec = err_avec_make(arena);
 }
 
 static void skip_whitespace() {
@@ -293,7 +284,7 @@ static void make_token(const token_kind_t token_kind) {
 
     token.span = make_span();
 
-    token_vec_push(&scanner.t_vec, token);
+    token_avec_push(scanner.token_avec, token);
 }
 
 static void make_err(const char *fmt, ...) {
@@ -304,14 +295,14 @@ static void make_err(const char *fmt, ...) {
     va_end(args);
     if (len < 0) return;
 
-    char *buf = arena_alloc(&scanner.arena, (size_t)len + 1);
+    char *buf = arena_alloc(scanner.arena, (size_t)len + 1);
     if (!buf) return;
 
     va_start(args, fmt);
     vsnprintf(buf, (size_t)len + 1, fmt, args);
     va_end(args);
 
-    err_vec_push(&scanner.err_vec, (fe_err_t){
+    err_avec_push(scanner.err_avec, (fe_err_t){
         .span = make_span(),
         .err  = buf,
     });
@@ -335,7 +326,10 @@ static char peek_next() {
 
 static char advance() {
     const char c = *scanner.current++;
-    if (c == '\n')
-        line_vec_push(&scanner.src_file->line_vec, (size_t)(scanner.current - scanner.src));
+    if (c == '\n') {
+        line_avec_push(scanner.src_file.line_avec, 
+                       (size_t)(scanner.current - scanner.src));
+    }
+
     return c;
 }

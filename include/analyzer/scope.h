@@ -1,52 +1,43 @@
 #ifndef SCOPE_H
 #define SCOPE_H
 
-#include "statement.h"
 #include "types.h"
 #include "dsa/strmap.h"
 
 typedef enum {
+    OBJ_ANY = 0,
     OBJ_VARIABLE,
     OBJ_FUNCTION,
     OBJ_TYPE,
+
+    OBJ_UNKNOWN = -1
 } obj_kind_t;
 
 typedef struct {
     obj_kind_t kind;
     const char *name;
-
-    struct {
-        struct {
-            type_t *type;
-            bool defined;
-        } variable;
-
-        struct {
-            typed_fun_param_t *params;
-            size_t param_count;
-            type_t *return_type;
-        } function;
-
-        type_t *type;
-    } as;
+    bool defined;
+    type_t *type;
 } obj_t;
 
-STRMAP_DEFINE_H(obj_t, obj)
+#define STRMAP_TYPE obj_t
+#define STRMAP_NAME obj
+#include "dsa/strmap.h"
 
 typedef enum {
-    SCOPE_GLOBAL,
-    SCOPE_FUN,
-    SCOPE_WHILE,
-    SCOPE_FOR
-} scope_kind_t;
+    ASCOPE_GLOBAL,
+    ASCOPE_FUN,
+    ASCOPE_WHILE,
+    ASCOPE_FOR
+} ascope_kind_t;
 
-typedef struct scope scope_t;
+// analyzer scope
+typedef struct ascope ascope_t;
 
-struct scope {
-    scope_t *parent;
-    scope_kind_t kind;
-
-    obj_map_t obj_map;
+struct ascope {
+    ascope_kind_t kind;
+    ascope_t *parent;
+    obj_map_t *obj_map;
 
     type_t *return_type;
 };
