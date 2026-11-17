@@ -1,6 +1,7 @@
 ## Build & debug directories ##
 cmake-build-debug/
 build/
+.cache/
 
 ## IDEs ##
 .idea/
