@@ -1,25 +1,29 @@
 #include "file.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 
-static void file_err(const char* path) {
+static void file_err(const char *path) {
     fprintf(stderr, "Could not open file %s\".\n", path);
     exit(74);
 }
 
-char* read_file(const char *path) {
-    FILE* file = fopen(path, "rb");
+FILE *open_file(const char *path, const char *modes) {
+    FILE *file = fopen(path, modes);
     if (file == nullptr) {
         file_err(path);
     }
+    return file;
+}
+
+char *read_file(const char *path) {
+    FILE *file = open_file(path, "rb");
 
     fseek(file, 0L, SEEK_END);
     const size_t file_size = ftell(file);
     rewind(file);
 
     char *buffer = malloc(file_size + 1);
-    if(buffer == nullptr) {
+    if (buffer == nullptr) {
         file_err(path);
     }
 

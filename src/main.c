@@ -2,15 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mem/arena.h"
 #include "checker/checker.h"
 #include "common.h"
 #include "file.h"
+#include "mem/arena.h"
 #include "parser/debug.h"
 #include "parser/parser.h"
-#include "ssa/gen.h"
+#include "transpiler/transpiler.h"
 
-int main(const int argc, const char* argv[]) {
+int main(const int argc, const char *argv[]) {
     if (argc != 2) {
         fprintf(stderr, "Usage: bdx <filepath>\n");
         exit(64);
@@ -19,7 +19,7 @@ int main(const int argc, const char* argv[]) {
     const char *path = argv[1];
     char *src = read_file(path);
 
-    errors_init((src_file_t) {
+    errors_init((src_file_t){
         .path = path,
         .src = src,
         .len = strlen(src),
@@ -28,7 +28,7 @@ int main(const int argc, const char* argv[]) {
     arena_t *arena = arena_make(1 << 28u);
 
     parse_result_t parser_res = parse(src, arena);
-    if(!parser_res.success) {
+    if (!parser_res.success) {
         fprintf(stderr, "error parsing file");
         exit(1);
     }
@@ -36,15 +36,16 @@ int main(const int argc, const char* argv[]) {
     print_stmts(parser_res.stmts, parser_res.stmt_count);
 
     bool checker_res = check(parser_res.stmts, parser_res.stmt_count);
-    if(!checker_res) {
+    if (!checker_res) {
         fprintf(stderr, "error checking file");
         exit(1);
     }
     printf("\n=== Typed AST ===\n\n");
     print_stmts(parser_res.stmts, parser_res.stmt_count);
 
-    gen_result_t gen_res = gen_ssa(parser_res.stmts, parser_res.stmt_count);
+    transpile(parser_res.stmts, parser_res.stmt_count);
 
+    arena_destroy(arena);
     free(src);
 
     return 0;
