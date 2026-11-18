@@ -28,5 +28,4 @@ token_t expect(const token_kind_t expected);
 bool matches(const token_kind_t expected);
 span_t span_join(const span_t from, const span_t to);
 
-
 #endif // BORDEAUX_PARSER_H

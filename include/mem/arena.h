@@ -4,13 +4,13 @@
 #define ARENA_DEFAULT_ALIGN 8
 
 #ifdef _WIN32
-    #include <windows.h>
+#include <windows.h>
 #else
-    #include <sys/mman.h>
+#include <sys/mman.h>
 #endif
 
 typedef struct {
-    char* base_ptr;
+    char *base_ptr;
     size_t reserved;
     size_t committed;
     size_t used;

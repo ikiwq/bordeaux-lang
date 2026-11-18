@@ -1,0 +1,4 @@
+extern fun print(s: string);
+extern fun println(s: string);
+
+extern fun itoa(i: int) -> string;

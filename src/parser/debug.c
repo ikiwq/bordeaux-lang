@@ -1,13 +1,11 @@
 #include "parser/debug.h"
 
-#include <stdio.h>
 #include <inttypes.h>
+#include <stdio.h>
 
 #include "str.h"
 
-static void indent(const size_t level) {
-    printf("%*s", (int)(level * 2), "");
-}
+static void indent(const size_t level) { printf("%*s", (int)(level * 2), ""); }
 
 static void print_label(const char *label, const size_t level) {
     indent(level);
@@ -44,13 +42,25 @@ void print_expr(const expr_t *expr, const size_t level) {
         case EXPR_PRIMARY: {
             const token_t token = expr->primary;
             switch (token.kind) {
-                case TOKEN_INTEGER: printf("Int: %" PRIi64 "\n", token.attr.num_val); break;
-                case TOKEN_FLOAT:   printf("Float: %g\n", token.attr.float_val); break;
-                case TOKEN_STRING:  printf("String: \"" STR_FMT "\"\n", STR_ARG(token.lexeme)); break;
-                case TOKEN_CHAR:    printf("Char: '%c'\n", token.attr.char_val); break;
+                case TOKEN_INTEGER:
+                    printf("Int: %" PRIi64 "\n", token.attr.num_val);
+                    break;
+                case TOKEN_FLOAT:
+                    printf("Float: %g\n", token.attr.float_val);
+                    break;
+                case TOKEN_STRING:
+                    printf("String: \"" STR_FMT "\"\n", STR_ARG(token.lexeme));
+                    break;
+                case TOKEN_CHAR:
+                    printf("Char: '%c'\n", token.attr.char_val);
+                    break;
                 case TOKEN_TRUE:
-                case TOKEN_FALSE:   printf("Bool: %s\n", token.attr.bool_val ? "true" : "false"); break;
-                default:            printf("Primary: " STR_FMT "\n", STR_ARG(token.lexeme)); break;
+                case TOKEN_FALSE:
+                    printf("Bool: %s\n", token.attr.bool_val ? "true" : "false");
+                    break;
+                default:
+                    printf("Primary: " STR_FMT "\n", STR_ARG(token.lexeme));
+                    break;
             }
             break;
         }

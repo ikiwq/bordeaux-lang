@@ -39,6 +39,11 @@ void emit_statement(stmt_t *stmt) {
 
     switch (stmt->kind) {
         case STMT_FUN_DECL: {
+            bool has_body = stmt->fun.body;
+            if (!has_body) {
+                emit("extern ");
+            }
+
             emit_type(stmt->fun.return_type);
             emit(" " STR_FMT "(", STR_ARG(stmt->fun.identifier.lexeme));
 
@@ -51,9 +56,15 @@ void emit_statement(stmt_t *stmt) {
                 }
             }
 
-            emit(") {\n");
-            emit_statement(stmt->fun.body);
-            emit("}\n\n");
+            emit(")");
+
+            if (has_body) {
+                emit("{\n");
+                emit_statement(stmt->fun.body);
+                emit("}\n\n");
+            } else {
+                emit(";\n\n");
+            }
 
             break;
         }
@@ -77,11 +88,10 @@ void emit_statement(stmt_t *stmt) {
                 emit_indent();
                 emit("} else {\n");
                 emit_statement(stmt->if_.else_body);
-                emit("}\n");
-            } else {
-                emit_indent();
-                emit("}\n");
             }
+
+            emit_indent();
+            emit("}\n");
             break;
         }
         case STMT_BLOCK: {
@@ -90,6 +100,42 @@ void emit_statement(stmt_t *stmt) {
                 emit_statement(stmt->block.stmts[i]);
             }
             depth--;
+            break;
+        }
+        case STMT_WHILE: {
+            emit_indent();
+            emit("while (");
+            emit_expr(stmt->while_.condition);
+            emit(") {\n");
+            emit_statement(stmt->while_.body);
+            emit_indent();
+            emit("}\n");
+            break;
+        }
+        case STMT_FOR: {
+            emit_indent();
+            emit("for (");
+
+            if (stmt->for_.initializer) {
+                stmt_t *init = stmt->for_.initializer;
+                if (init->kind == STMT_VAR_DECL) {
+                    emit_type(init->var.type);
+                    emit(" " STR_FMT " = ", STR_ARG(init->var.identifier.lexeme));
+                    emit_expr(init->var.value);
+                } else {
+                    emit_expr(init->expr);
+                }
+            }
+            emit("; ");
+
+            emit_expr(stmt->for_.condition);
+            emit("; ");
+            emit_expr(stmt->for_.increment);
+
+            emit(") {\n");
+            emit_statement(stmt->for_.body);
+            emit_indent();
+            emit("}\n");
             break;
         }
         case STMT_RETURN: {
@@ -131,7 +177,6 @@ void emit_expr(expr_t *expr) {
 
     switch (expr->kind) {
         case EXPR_BINARY: {
-            // printf(STR_FMT "\n", STR_ARG(expr->binary.left->type->lexeme));
             if (expr->binary.left->type == &ty_string) {
                 emit("str_concat(");
                 emit_expr(expr->binary.left);
@@ -200,8 +245,10 @@ void emit_primary(token_t token) {
             break;
         }
         case TOKEN_STRING: {
-            emit("(str_t){ .ptr = \"" STR_FMT "\", .len = %zu }",
-                 STR_ARG(token.lexeme), token.lexeme.len);
+            emit(
+                "(str_t){ .ptr = \"" STR_FMT "\", .len = %zu }",
+                STR_ARG(token.lexeme),
+                token.lexeme.len);
         }
         default: {
             break;

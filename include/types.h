@@ -45,7 +45,7 @@ extern const size_t prims_count;
 
 size_t get_type_size(type_t *type);
 
-static type_kind_t comparable_types[] = { TY_INT, TY_FLOAT };
+static type_kind_t comparable_types[] = {TY_INT, TY_FLOAT};
 static inline bool is_comparable(const type_t *type) {
     for (size_t i = 0; i < ARRAY_SIZE(comparable_types); i++) {
         if (type->kind == comparable_types[i]) {
@@ -55,7 +55,7 @@ static inline bool is_comparable(const type_t *type) {
     return false;
 }
 
-static type_kind_t computable_types[] = { TY_INT, TY_FLOAT };
+static type_kind_t computable_types[] = {TY_INT, TY_FLOAT};
 static inline bool is_computable(const type_t *type) {
     for (size_t i = 0; i < ARRAY_SIZE(computable_types); i++) {
         if (type->kind == computable_types[i]) {
@@ -65,7 +65,7 @@ static inline bool is_computable(const type_t *type) {
     return false;
 }
 
-static type_kind_t negatable_types[] = { TY_INT, TY_FLOAT };
+static type_kind_t negatable_types[] = {TY_INT, TY_FLOAT};
 static inline bool is_negatable(const type_t *type) {
     for (size_t i = 0; i < ARRAY_SIZE(negatable_types); i++) {
         if (type->kind == negatable_types[i]) {

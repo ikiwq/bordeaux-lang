@@ -10,11 +10,7 @@ typedef struct {
     bool active;
 } obj_entry_t;
 
-typedef enum {
-    SCOPE_GLOBAL,
-    SCOPE_LOOP,
-    SCOPE_FUN
-} scope_kind_t;
+typedef enum { SCOPE_GLOBAL, SCOPE_LOOP, SCOPE_FUN } scope_kind_t;
 
 typedef struct scope scope_t;
 struct scope {

@@ -5,19 +5,15 @@
 
 pvec_t *pvec_init() {
     pvec_t *v = malloc(sizeof *v);
-    *v = (pvec_t) {
-        .items = nullptr,
-        .size = 0,
-        .capacity = 0
-    };
+    *v = (pvec_t){.items = nullptr, .size = 0, .capacity = 0};
     return v;
 }
 
 void pvec_push(pvec_t *v, void *p) {
-    if(v->capacity == 0 || v->size >= v->capacity) {
+    if (v->capacity == 0 || v->size >= v->capacity) {
         size_t new_capacity = CAPACITY_GROW(v->capacity);
         void **new_items = malloc(new_capacity * sizeof *new_items);
-        for(size_t i = 0; i < v->size; i++) {
+        for (size_t i = 0; i < v->size; i++) {
             new_items[i] = v->items[i];
         }
         free(v->items);

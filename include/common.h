@@ -6,8 +6,7 @@
 #define CONCAT_(a, b) a##b
 #define CONCAT(a, b) CONCAT_(a, b)
 
-#define ARRAY_SIZE(arr) \
-    (sizeof(arr) / sizeof((arr)[0]))
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 typedef struct {
     const char *path;

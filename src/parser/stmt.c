@@ -1,10 +1,11 @@
 #include "parser/stmt.h"
 
 #include "mem/arena.h"
+#include "mem/pvec.h"
 #include "parser/expr.h"
 #include "parser/parser.h"
-#include "mem/pvec.h"
 #include "scanner/token.h"
+#include <stdio.h>
 
 #define MAX_PARAMS 255
 
@@ -27,7 +28,10 @@ stmt_t *global_statement() {
         // Global variable declarations are a bit tricky, will have to spend
         // a little bit of time designing the behaviour
         // case TOKEN_LET: return stmt_var_decl();
-        case TOKEN_FUN: return stmt_fun_decl();
+        case TOKEN_FUN:
+            return stmt_fun_decl();
+        case TOKEN_EXTERN:
+            return stmt_fun_decl();
         default: {
             advance();
             report_err(next.span, "expected a function declaration");
@@ -40,16 +44,26 @@ static stmt_t *stmt_scoped() {
     const token_t next = peek();
 
     switch (next.kind) {
-        case TOKEN_IF: return stmt_if();
-        case TOKEN_LET: return stmt_var_decl();
-        case TOKEN_FOR: return stmt_for();
-        case TOKEN_WHILE: return stmt_while();
-        case TOKEN_FUN: return stmt_fun_decl();
-        case TOKEN_RETURN: return stmt_return();
-        case TOKEN_LEFT_BRACE: return stmt_block();
-        case TOKEN_BREAK: return stmt_break();
-        case TOKEN_CONTINUE: return stmt_continue();
-        default: return stmt_expr();
+        case TOKEN_IF:
+            return stmt_if();
+        case TOKEN_LET:
+            return stmt_var_decl();
+        case TOKEN_FOR:
+            return stmt_for();
+        case TOKEN_WHILE:
+            return stmt_while();
+        case TOKEN_FUN:
+            return stmt_fun_decl();
+        case TOKEN_RETURN:
+            return stmt_return();
+        case TOKEN_LEFT_BRACE:
+            return stmt_block();
+        case TOKEN_BREAK:
+            return stmt_break();
+        case TOKEN_CONTINUE:
+            return stmt_continue();
+        default:
+            return stmt_expr();
     }
 }
 
@@ -73,14 +87,10 @@ static stmt_t *stmt_if() {
     }
 
     stmt_t *stmt = arena_alloc(parser.arena, sizeof *stmt);
-    *stmt = (stmt_t) {
+    *stmt = (stmt_t){
         .kind = STMT_IF,
         .span = span_join(keyword.span, parser.previous.span),
-        .if_ = {
-            .then_condition = condition,
-            .then_body = then_body,
-            .else_body = else_body
-        }
+        .if_ = {.then_condition = condition, .then_body = then_body, .else_body = else_body}
     };
     return stmt;
 }
@@ -96,13 +106,10 @@ static stmt_t *stmt_while() {
     if (!body) return nullptr;
 
     stmt_t *stmt = arena_alloc(parser.arena, sizeof *stmt);
-    *stmt = (stmt_t) {
+    *stmt = (stmt_t){
         .kind = STMT_WHILE,
         .span = span_join(keyword.span, parser.previous.span),
-        .while_ = {
-            .condition = condition,
-            .body = body
-        }
+        .while_ = {.condition = condition, .body = body}
     };
     return stmt;
 }
@@ -138,20 +145,23 @@ static stmt_t *stmt_for() {
     if (!body) return nullptr;
 
     stmt_t *stmt = arena_alloc(parser.arena, sizeof *stmt);
-    *stmt = (stmt_t) {
+    *stmt = (stmt_t){
         .kind = STMT_FOR,
         .span = span_join(keyword.span, parser.previous.span),
         .for_ = {
-            .initializer = initializer,
-            .condition = condition,
-            .increment = increment,
-            .body = body
+            .initializer = initializer, .condition = condition, .increment = increment, .body = body
         }
     };
     return stmt;
 }
 
 static stmt_t *stmt_fun_decl() {
+    bool is_extern = false;
+    if (matches(TOKEN_EXTERN)) {
+        is_extern = true;
+        advance();
+    }
+
     const token_t keyword = expect(TOKEN_FUN);
     if (keyword.kind == TOKEN_ERROR) return nullptr;
 
@@ -177,10 +187,7 @@ static stmt_t *stmt_fun_decl() {
                 report_err(param_name.span, "cannot have more than %d parameters", MAX_PARAMS);
             } else {
                 fun_param_t *param = arena_alloc(parser.arena, sizeof *param);
-                *param = (fun_param_t) {
-                    .identifier = param_name,
-                    .type = param_type
-                };
+                *param = (fun_param_t){.identifier = param_name, .type = param_type};
                 params[param_count++] = param;
             }
 
@@ -198,16 +205,21 @@ static stmt_t *stmt_fun_decl() {
         if (!return_type) return nullptr;
     }
 
-    stmt_t *body = stmt_block();
-    if (!body) return nullptr;
+    stmt_t *body = nullptr;
+    if (!is_extern) {
+        body = stmt_block();
+        if (!body) return nullptr;
+    } else {
+        expect(TOKEN_SEMICOLON);
+    }
 
     stmt_t *stmt = arena_alloc(parser.arena, sizeof *stmt);
-    *stmt = (stmt_t) {
+    *stmt = (stmt_t){
         .kind = STMT_FUN_DECL,
         .span = span_join(keyword.span, parser.previous.span),
         .fun = {
             .identifier = identifier,
-            .params = arena_copy(parser.arena, params, param_count * sizeof(fun_param_t*)),
+            .params = arena_copy(parser.arena, params, param_count * sizeof(fun_param_t *)),
             .param_count = param_count,
             .return_type = return_type,
             .body = body
@@ -237,14 +249,10 @@ static stmt_t *stmt_var_decl() {
     if (expect(TOKEN_SEMICOLON).kind == TOKEN_ERROR) return nullptr;
 
     stmt_t *stmt = arena_alloc(parser.arena, sizeof *stmt);
-    *stmt = (stmt_t) {
+    *stmt = (stmt_t){
         .kind = STMT_VAR_DECL,
         .span = span_join(keyword.span, parser.previous.span),
-        .var = {
-            .identifier = identifier,
-            .type = decl_type,
-            .value = value
-        }
+        .var = {.identifier = identifier, .type = decl_type, .value = value}
     };
     return stmt;
 }
@@ -262,12 +270,10 @@ static stmt_t *stmt_return() {
     if (expect(TOKEN_SEMICOLON).kind == TOKEN_ERROR) return nullptr;
 
     stmt_t *stmt = arena_alloc(parser.arena, sizeof *stmt);
-    *stmt = (stmt_t) {
+    *stmt = (stmt_t){
         .kind = STMT_RETURN,
         .span = span_join(keyword.span, parser.previous.span),
-        .return_ = {
-            .value = value
-        }
+        .return_ = {.value = value}
     };
     return stmt;
 }
@@ -293,17 +299,14 @@ static stmt_t *stmt_block() {
     }
 
     const size_t stmt_count = stmts->size;
-    stmt_t **stmt_items = arena_copy(parser.arena, stmts->items, stmt_count * sizeof(stmt_t*));
+    stmt_t **stmt_items = arena_copy(parser.arena, stmts->items, stmt_count * sizeof(stmt_t *));
     pvec_destroy(stmts);
 
     stmt_t *stmt = arena_alloc(parser.arena, sizeof *stmt);
-    *stmt = (stmt_t) {
+    *stmt = (stmt_t){
         .kind = STMT_BLOCK,
         .span = span_join(left_brace.span, parser.previous.span),
-        .block = {
-            .stmts = stmt_items,
-            .stmt_count = stmt_count
-        }
+        .block = {.stmts = stmt_items, .stmt_count = stmt_count}
     };
     return stmt;
 }
@@ -315,10 +318,7 @@ static stmt_t *stmt_break() {
     if (expect(TOKEN_SEMICOLON).kind == TOKEN_ERROR) return nullptr;
 
     stmt_t *stmt = arena_alloc(parser.arena, sizeof *stmt);
-    *stmt = (stmt_t) {
-        .kind = STMT_BREAK,
-        .span = span_join(keyword.span, parser.previous.span)
-    };
+    *stmt = (stmt_t){.kind = STMT_BREAK, .span = span_join(keyword.span, parser.previous.span)};
     return stmt;
 }
 
@@ -329,10 +329,7 @@ static stmt_t *stmt_continue() {
     if (expect(TOKEN_SEMICOLON).kind == TOKEN_ERROR) return nullptr;
 
     stmt_t *stmt = arena_alloc(parser.arena, sizeof *stmt);
-    *stmt = (stmt_t) {
-        .kind = STMT_CONTINUE,
-        .span = span_join(keyword.span, parser.previous.span)
-    };
+    *stmt = (stmt_t){.kind = STMT_CONTINUE, .span = span_join(keyword.span, parser.previous.span)};
     return stmt;
 }
 
@@ -343,10 +340,8 @@ static stmt_t *stmt_expr() {
     if (expect(TOKEN_SEMICOLON).kind == TOKEN_ERROR) return nullptr;
 
     stmt_t *stmt = arena_alloc(parser.arena, sizeof *stmt);
-    *stmt = (stmt_t) {
-        .kind = STMT_EXPR,
-        .span = span_join(expr->span, parser.previous.span),
-        .expr = expr
+    *stmt = (stmt_t){
+        .kind = STMT_EXPR, .span = span_join(expr->span, parser.previous.span), .expr = expr
     };
     return stmt;
 }

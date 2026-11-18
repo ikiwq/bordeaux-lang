@@ -5,11 +5,7 @@
 #include "str.h"
 #include "types.h"
 
-typedef enum {
-    OBJ_VAR,
-    OBJ_FUN,
-    OBJ_TYPE
-} obj_kind_t;
+typedef enum { OBJ_VAR, OBJ_FUN, OBJ_TYPE } obj_kind_t;
 
 typedef struct {
     obj_kind_t obj_kind;

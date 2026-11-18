@@ -23,10 +23,8 @@ arena_t *arena_make(const size_t size) {
     }
     a.committed = 0;
 #else
-    void *p = mmap(NULL, size,
-                   PROT_READ | PROT_WRITE,
-                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
-                   -1, 0);
+    void *p = mmap(
+        NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
     if (p == MAP_FAILED) {
         fprintf(stderr, "Cannot allocate memory for arena");
         exit(EXIT_FAILURE);
@@ -39,10 +37,7 @@ arena_t *arena_make(const size_t size) {
 
     arena_t *a_ptr = arena_alloc(&a, sizeof *a_ptr);
     *a_ptr = (arena_t){
-        .committed = a.committed,
-        .base_ptr = a.base_ptr,
-        .reserved = a.reserved,
-        .used = a.used
+        .committed = a.committed, .base_ptr = a.base_ptr, .reserved = a.reserved, .used = a.used
     };
 
     return a_ptr;
@@ -67,11 +62,11 @@ void *arena_alloc_aligned(arena_t *a, const size_t size, const size_t align) {
     if (off + size > a->committed) {
         size_t want = align_size(off + size, 64 * 1024);
         if (want > a->reserved) want = a->reserved;
-        if (!VirtualAlloc(a->base_ptr + a->committed, want - a->committed,
-                          MEM_COMMIT, PAGE_READWRITE)) {
+        if (!VirtualAlloc(
+                a->base_ptr + a->committed, want - a->committed, MEM_COMMIT, PAGE_READWRITE)) {
             fprintf(stderr, "bordeaux: cannot commit arena memory\n");
             exit(EXIT_FAILURE);
-                          }
+        }
         a->committed = want;
     }
 #endif
@@ -96,6 +91,4 @@ void arena_destroy(arena_t *a) {
 #endif
 }
 
-void arena_reset(arena_t *a) {
-    a->used = 0;
-}
+void arena_reset(arena_t *a) { a->used = 0; }

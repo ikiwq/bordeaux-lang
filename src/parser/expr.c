@@ -1,9 +1,9 @@
 #include "parser/expr.h"
 
-#include "mem/arena.h"
 #include "common.h"
-#include "parser/parser.h"
+#include "mem/arena.h"
 #include "mem/pvec.h"
+#include "parser/parser.h"
 #include "scanner/token.h"
 #include "str.h"
 
@@ -19,9 +19,7 @@ static expr_t *expr_postfix();
 static expr_t *finish_call(expr_t *callee);
 static expr_t *expr_primary();
 
-expr_t *expression() {
-    return expr_assignment();
-}
+expr_t *expression() { return expr_assignment(); }
 
 static expr_t *expr_assignment() {
     expr_t *left = expr_or();
@@ -35,18 +33,14 @@ static expr_t *expr_assignment() {
         return nullptr;
     }
 
-    expr_t *right= expr_assignment();
+    expr_t *right = expr_assignment();
     if (!right) return nullptr;
 
     expr_t *expr = arena_alloc(parser.arena, sizeof *expr);
-    *expr = (expr_t) {
+    *expr = (expr_t){
         .kind = EXPR_BINARY,
         .span = span_join(left->span, right->span),
-        .binary = {
-            .left = left,
-            .op = op,
-            .right = right
-        }
+        .binary = {.left = left, .op = op, .right = right}
     };
     return expr;
 }
@@ -61,10 +55,10 @@ static expr_t *expr_or() {
         if (!right) return nullptr;
 
         expr_t *expr = arena_alloc(parser.arena, sizeof *expr);
-        *expr = (expr_t) {
+        *expr = (expr_t){
             .kind = EXPR_BINARY,
             .span = span_join(left->span, right->span),
-            .binary = { .left = left, .op = op, .right = right }
+            .binary = {.left = left, .op = op, .right = right}
         };
         left = expr;
     }
@@ -82,10 +76,10 @@ static expr_t *expr_and() {
         if (!right) return nullptr;
 
         expr_t *expr = arena_alloc(parser.arena, sizeof *expr);
-        *expr = (expr_t) {
+        *expr = (expr_t){
             .kind = EXPR_BINARY,
             .span = span_join(left->span, right->span),
-            .binary = { .left = left, .op = op, .right = right }
+            .binary = {.left = left, .op = op, .right = right}
         };
         left = expr;
     }
@@ -103,10 +97,10 @@ static expr_t *expr_equality() {
         if (!right) return nullptr;
 
         expr_t *expr = arena_alloc(parser.arena, sizeof *expr);
-        *expr = (expr_t) {
+        *expr = (expr_t){
             .kind = EXPR_BINARY,
             .span = span_join(left->span, right->span),
-            .binary = { .left = left, .op = op, .right = right }
+            .binary = {.left = left, .op = op, .right = right}
         };
         left = expr;
     }
@@ -124,10 +118,10 @@ static expr_t *expr_comparison() {
         if (!right) return nullptr;
 
         expr_t *expr = arena_alloc(parser.arena, sizeof *expr);
-        *expr = (expr_t) {
+        *expr = (expr_t){
             .kind = EXPR_BINARY,
             .span = span_join(left->span, right->span),
-            .binary = { .left = left, .op = op, .right = right }
+            .binary = {.left = left, .op = op, .right = right}
         };
         left = expr;
     }
@@ -145,10 +139,10 @@ static expr_t *expr_term() {
         if (!right) return nullptr;
 
         expr_t *expr = arena_alloc(parser.arena, sizeof *expr);
-        *expr = (expr_t) {
+        *expr = (expr_t){
             .kind = EXPR_BINARY,
             .span = span_join(left->span, right->span),
-            .binary = { .left = left, .op = op, .right = right }
+            .binary = {.left = left, .op = op, .right = right}
         };
         left = expr;
     }
@@ -166,10 +160,10 @@ static expr_t *expr_factor() {
         if (!right) return nullptr;
 
         expr_t *expr = arena_alloc(parser.arena, sizeof *expr);
-        *expr = (expr_t) {
+        *expr = (expr_t){
             .kind = EXPR_BINARY,
             .span = span_join(left->span, right->span),
-            .binary = { .left = left, .op = op, .right = right }
+            .binary = {.left = left, .op = op, .right = right}
         };
         left = expr;
     }
@@ -187,10 +181,10 @@ static expr_t *expr_unary() {
     if (!right) return nullptr;
 
     expr_t *expr = arena_alloc(parser.arena, sizeof *expr);
-    *expr = (expr_t) {
+    *expr = (expr_t){
         .kind = EXPR_UNARY,
         .span = span_join(op.span, right->span),
-        .unary = { .op = op, .right = right }
+        .unary = {.op = op, .right = right}
     };
     return expr;
 }
@@ -236,18 +230,14 @@ static expr_t *finish_call(expr_t *callee) {
     }
 
     const size_t arg_count = args->size;
-    expr_t **arg_items = arena_copy(parser.arena, args->items, arg_count * sizeof(expr_t*));
+    expr_t **arg_items = arena_copy(parser.arena, args->items, arg_count * sizeof(expr_t *));
     pvec_destroy(args);
 
     expr_t *expr = arena_alloc(parser.arena, sizeof *expr);
-    *expr = (expr_t) {
+    *expr = (expr_t){
         .kind = EXPR_CALL,
         .span = span_join(callee->span, right_paren.span),
-        .call = {
-            .callee = callee->var,
-            .args = arg_items,
-            .arg_count = arg_count
-        }
+        .call = {.callee = callee->var, .args = arg_items, .arg_count = arg_count}
     };
     return expr;
 }
@@ -263,11 +253,7 @@ static expr_t *expr_primary() {
     switch (next.kind) {
         case TOKEN_IDENTIFIER: {
             expr_t *expr = arena_alloc(parser.arena, sizeof *expr);
-            *expr = (expr_t) {
-                .kind = EXPR_VAR,
-                .span = next.span,
-                .var = next
-            };
+            *expr = (expr_t){.kind = EXPR_VAR, .span = next.span, .var = next};
             return expr;
         }
 
@@ -278,11 +264,7 @@ static expr_t *expr_primary() {
         case TOKEN_FALSE:
         case TOKEN_TRUE: {
             expr_t *expr = arena_alloc(parser.arena, sizeof *expr);
-            *expr = (expr_t) {
-                .kind = EXPR_PRIMARY,
-                .span = next.span,
-                .primary = next
-            };
+            *expr = (expr_t){.kind = EXPR_PRIMARY, .span = next.span, .primary = next};
             return expr;
         }
 
@@ -299,7 +281,10 @@ static expr_t *expr_primary() {
         }
 
         default:
-            report_err(next.span, "Expected expression, found '" STR_FMT "' instead", STR_ARG(next.lexeme));
+            report_err(
+                next.span,
+                "Expected expression, found '" STR_FMT "' instead",
+                STR_ARG(next.lexeme));
             return nullptr;
     }
 }

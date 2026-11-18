@@ -8,3 +8,7 @@ build/
 
 ## Envs ##
 .env*
+
+## Test files ##
+main.c
+out

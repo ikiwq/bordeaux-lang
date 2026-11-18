@@ -5,9 +5,7 @@
 
 static src_file_t file;
 
-void errors_init(const src_file_t src_file) {
-    file = src_file;
-}
+void errors_init(const src_file_t src_file) { file = src_file; }
 
 void report_err(const span_t span, const char *fmt, ...) {
     const size_t start = span.start > file.len ? file.len : span.start;
@@ -22,7 +20,8 @@ void report_err(const span_t span, const char *fmt, ...) {
     }
 
     size_t line_end = line_start;
-    while (line_end < file.len && file.src[line_end] != '\n') line_end++;
+    while (line_end < file.len && file.src[line_end] != '\n')
+        line_end++;
 
     const size_t col = start - line_start + 1;
     const char *text = file.src + line_start;
@@ -44,6 +43,7 @@ void report_err(const span_t span, const char *fmt, ...) {
     if (caret_end > line_end) caret_end = line_end;
     const size_t n = caret_end > start ? caret_end - start : 1;
 
-    for (size_t i = 0; i < n; i++) fputc('^', stderr);
+    for (size_t i = 0; i < n; i++)
+        fputc('^', stderr);
     fputc('\n', stderr);
 }
