@@ -43,8 +43,6 @@ extern type_t ty_error;
 extern type_t *const prims[];
 extern const size_t prims_count;
 
-size_t get_type_size(type_t *type);
-
 static type_kind_t comparable_types[] = {TY_INT, TY_FLOAT};
 static inline bool is_comparable(const type_t *type) {
     for (size_t i = 0; i < ARRAY_SIZE(comparable_types); i++) {
