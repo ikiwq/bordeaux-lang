@@ -114,8 +114,7 @@ bool define_var(token_t identifier) {
     return true;
 }
 
-bool declare_fun(
-    token_t identifier, fun_param_t **params, size_t param_count, type_t *return_type) {
+bool declare_fun(token_t identifier, fun_param_vec_t params, type_t *return_type) {
     resize_entries();
 
     scope_t *current_scope = checker.scope;
@@ -132,7 +131,7 @@ bool declare_fun(
             (obj_t){
                 .lexeme = identifier.lexeme,
                 .obj_kind = OBJ_FUN,
-                .fun = {.params = params, .param_count = param_count, .return_type = return_type}
+                .fun = {.params = params, .return_type = return_type}
             },
         .active = true
     };

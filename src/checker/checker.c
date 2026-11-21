@@ -18,11 +18,11 @@ static void checker_init();
 static bool check_stmt(stmt_t *stmt);
 static type_t *check_expr(expr_t *expr);
 
-bool check(stmt_t **stmts, size_t stmt_count) {
+bool check(stmt_vec_t stmts) {
     checker_init();
 
-    for (size_t i = 0; i < stmt_count; i++) {
-        stmt_t *stmt = stmts[i];
+    for (size_t i = 0; i < stmts.size; i++) {
+        stmt_t *stmt = stmts.data[i];
         bool res = check_stmt(stmt);
         if (!res) {
             checker.has_error = true;
@@ -48,15 +48,12 @@ static void checker_init() {
 static bool check_stmt(stmt_t *stmt) {
     switch (stmt->kind) {
         case STMT_FUN_DECL: {
-            declare_fun(
-                stmt->fun.identifier,
-                stmt->fun.params,
-                stmt->fun.param_count,
-                stmt->fun.return_type);
+            declare_fun(stmt->fun.identifier, stmt->fun.params, stmt->fun.return_type);
 
             push_fun_scope(stmt->fun.return_type);
-            for (size_t i = 0; i < stmt->fun.param_count; i++) {
-                declare_var(stmt->fun.params[i]->identifier, stmt->fun.params[i]->type);
+            for (size_t i = 0; i < stmt->fun.params.size; i++) {
+                fun_param_t param = stmt->fun.params.data[i];
+                declare_var(param.identifier, param.type);
             }
 
             bool res = true;
@@ -110,8 +107,8 @@ static bool check_stmt(stmt_t *stmt) {
         }
         case STMT_BLOCK: {
             bool ok = true;
-            for (size_t i = 0; i < stmt->block.stmt_count; i++) {
-                bool res = check_stmt(stmt->block.stmts[i]);
+            for (size_t i = 0; i < stmt->block.size; i++) {
+                bool res = check_stmt(stmt->block.data[i]);
                 ok = ok && res;
             }
             return ok;
@@ -252,26 +249,26 @@ static type_t *check_expr_inner(expr_t *expr) {
                 report_err(callee.span, "Called function is not defined");
                 return nullptr;
             }
-            if (fun_obj->fun.param_count != expr->call.arg_count) {
+            if (fun_obj->fun.params.size != expr->call.args.size) {
                 report_err(
                     callee.span,
                     "Wrong number of arguments (expected %zu, received %zu)",
-                    fun_obj->fun.param_count,
-                    expr->call.arg_count);
+                    fun_obj->fun.params.size,
+                    expr->call.args.size);
                 return nullptr;
             }
 
             bool had_err = false;
-            for (size_t i = 0; i < expr->call.arg_count; i++) {
-                type_t *arg_type = check_expr(expr->call.args[i]);
-                type_t *param_type = fun_obj->fun.params[i]->type;
+            for (size_t i = 0; i < expr->call.args.size; i++) {
+                type_t *arg_type = check_expr(expr->call.args.data[i]);
+                type_t *param_type = fun_obj->fun.params.data[i].type;
                 if (!arg_type) {
                     had_err = true;
                     continue;
                 }
                 if (arg_type != param_type) {
                     report_err(
-                        expr->call.args[i]->span,
+                        expr->call.args.data[i]->span,
                         "Mismatched types (expected " STR_FMT ", received " STR_FMT " instead)",
                         STR_ARG(param_type->lexeme),
                         STR_ARG(arg_type->lexeme));

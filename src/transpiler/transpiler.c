@@ -20,13 +20,13 @@ void emit_type(type_t *type);
 void emit_indent();
 void emit(const char *fmt, ...);
 
-void transpile(stmt_t **stmts, size_t stmt_count) {
+void transpile(stmt_vec_t stmts) {
     out = open_file("./main.c", "w");
 
     emit("#include \"runtime/runtime.h\"\n\n");
 
-    for (size_t i = 0; i < stmt_count; i++) {
-        emit_statement(stmts[i]);
+    for (size_t i = 0; i < stmts.size; i++) {
+        emit_statement(stmts.data[i]);
     }
 
     fclose(out);
@@ -47,11 +47,11 @@ void emit_statement(stmt_t *stmt) {
             emit_type(stmt->fun.return_type);
             emit(" " STR_FMT "(", STR_ARG(stmt->fun.identifier.lexeme));
 
-            for (size_t i = 0; i < stmt->fun.param_count; i++) {
-                fun_param_t *param = stmt->fun.params[i];
-                emit_type(param->type);
-                emit(" " STR_FMT, STR_ARG(param->identifier.lexeme));
-                if (i < stmt->fun.param_count - 1) {
+            for (size_t i = 0; i < stmt->fun.params.size; i++) {
+                fun_param_t param = stmt->fun.params.data[i];
+                emit_type(param.type);
+                emit(" " STR_FMT, STR_ARG(param.identifier.lexeme));
+                if (i < stmt->fun.params.size - 1) {
                     emit(",");
                 }
             }
@@ -96,8 +96,8 @@ void emit_statement(stmt_t *stmt) {
         }
         case STMT_BLOCK: {
             depth++;
-            for (size_t i = 0; i < stmt->block.stmt_count; i++) {
-                emit_statement(stmt->block.stmts[i]);
+            for (size_t i = 0; i < stmt->block.size; i++) {
+                emit_statement(stmt->block.data[i]);
             }
             depth--;
             break;
@@ -202,9 +202,9 @@ void emit_expr(expr_t *expr) {
         }
         case EXPR_CALL: {
             emit(STR_FMT "(", STR_ARG(expr->call.callee.lexeme));
-            for (size_t i = 0; i < expr->call.arg_count; i++) {
-                emit_expr(expr->call.args[i]);
-                if (i < expr->call.arg_count - 1) {
+            for (size_t i = 0; i < expr->call.args.size; i++) {
+                emit_expr(expr->call.args.data[i]);
+                if (i < expr->call.args.size - 1) {
                     emit(",");
                 }
             }

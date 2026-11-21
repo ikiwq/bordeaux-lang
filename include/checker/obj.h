@@ -18,8 +18,7 @@ typedef struct {
         } var;
 
         struct {
-            fun_param_t **params;
-            size_t param_count;
+            fun_param_vec_t params;
             type_t *return_type;
         } fun;
     };

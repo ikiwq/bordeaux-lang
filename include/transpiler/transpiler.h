@@ -3,8 +3,6 @@
 
 #include "parser/stmt.h"
 
-#include <stdio.h>
-
-void transpile(stmt_t **stmts, size_t stmt_count);
+void transpile(stmt_vec_t stmts);
 
 #endif // BORDEAUX_TRANSPILER_H

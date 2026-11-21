@@ -13,6 +13,11 @@ typedef enum {
 } expr_kind_t;
 
 typedef struct expr expr_t;
+
+#define VEC_TYPE expr_t *
+#define VEC_NAME expr
+#include "dsa/vec.h"
+
 struct expr {
     uint8_t kind;
     span_t span;
@@ -32,8 +37,7 @@ struct expr {
 
         struct {
             token_t callee;
-            expr_t **args;
-            size_t arg_count;
+            expr_vec_t args;
         } call;
 
         token_t var;

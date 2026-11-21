@@ -15,8 +15,7 @@ extern parser_t parser;
 
 typedef struct {
     bool success;
-    stmt_t **stmts;
-    size_t stmt_count;
+    stmt_vec_t statements;
 } parse_result_t;
 
 parse_result_t parse(const char *src, arena_t *arena);

@@ -6,30 +6,13 @@
 #include "common.h"
 #include "str.h"
 
-typedef enum {
-    TY_INT = 1,
-    TY_FLOAT,
-    TY_BOOL,
-    TY_CHAR,
-    TY_STRING,
-    TY_FUNCTION,
-    TY_VOID,
-    TY_ERROR
-} type_kind_t;
+typedef enum { TY_INT = 1, TY_FLOAT, TY_BOOL, TY_CHAR, TY_STRING, TY_VOID, TY_STRUCT } type_kind_t;
 
 typedef struct type type_t;
 
 struct type {
     type_kind_t kind;
     str_t lexeme;
-
-    union {
-        struct {
-            type_t **params;
-            size_t param_count;
-            type_t *return_type;
-        } function;
-    };
 };
 
 extern type_t ty_int;
@@ -38,7 +21,6 @@ extern type_t ty_string;
 extern type_t ty_bool;
 extern type_t ty_char;
 extern type_t ty_void;
-extern type_t ty_error;
 
 extern type_t *const prims[];
 extern const size_t prims_count;

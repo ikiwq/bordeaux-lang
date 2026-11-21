@@ -80,8 +80,8 @@ void print_expr(const expr_t *expr, const size_t level) {
 
         case EXPR_CALL: {
             printf("Call: " STR_FMT "\n", STR_ARG(expr->call.callee.lexeme));
-            for (size_t i = 0; i < expr->call.arg_count; i++) {
-                print_expr(expr->call.args[i], level + 1);
+            for (size_t i = 0; i < expr->call.args.size; i++) {
+                print_expr(expr->call.args.data[i], level + 1);
             }
             break;
         }
@@ -105,11 +105,11 @@ void print_stmt(const stmt_t *stmt, const size_t level) {
             printf("Fun: " STR_FMT " -> ", STR_ARG(stmt->fun.identifier.lexeme));
             print_type(stmt->fun.return_type);
             printf("\n");
-            for (size_t i = 0; i < stmt->fun.param_count; i++) {
-                const fun_param_t *param = stmt->fun.params[i];
+            for (size_t i = 0; i < stmt->fun.params.size; i++) {
+                const fun_param_t param = stmt->fun.params.data[i];
                 indent(level + 1);
-                printf("Param: " STR_FMT ": ", STR_ARG(param->identifier.lexeme));
-                print_type(param->type);
+                printf("Param: " STR_FMT ": ", STR_ARG(param.identifier.lexeme));
+                print_type(param.type);
                 printf("\n");
             }
             print_stmt(stmt->fun.body, level + 1);
@@ -175,8 +175,8 @@ void print_stmt(const stmt_t *stmt, const size_t level) {
 
         case STMT_BLOCK: {
             printf("Block\n");
-            for (size_t i = 0; i < stmt->block.stmt_count; i++) {
-                print_stmt(stmt->block.stmts[i], level + 1);
+            for (size_t i = 0; i < stmt->block.size; i++) {
+                print_stmt(stmt->block.data[i], level + 1);
             }
             break;
         }

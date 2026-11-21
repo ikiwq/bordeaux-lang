@@ -2,7 +2,6 @@
 
 #include "common.h"
 #include "mem/arena.h"
-#include "mem/pvec.h"
 #include "parser/parser.h"
 #include "scanner/token.h"
 #include "str.h"
@@ -207,16 +206,16 @@ static expr_t *finish_call(expr_t *callee) {
         return nullptr;
     }
 
-    pvec_t *args = pvec_init();
+    expr_vec_t args = {};
 
     if (!matches(TOKEN_RIGHT_PAREN)) {
         for (;;) {
             expr_t *arg = expression();
             if (!arg) {
-                pvec_destroy(args);
+                expr_vec_destroy(&args);
                 return nullptr;
             }
-            pvec_push(args, arg);
+            expr_vec_push(&args, arg);
 
             if (!matches(TOKEN_COMMA)) break;
             advance(); // Consume ','
@@ -225,19 +224,17 @@ static expr_t *finish_call(expr_t *callee) {
 
     const token_t right_paren = expect(TOKEN_RIGHT_PAREN);
     if (right_paren.kind == TOKEN_ERROR) {
-        pvec_destroy(args);
+        expr_vec_destroy(&args);
         return nullptr;
     }
 
-    const size_t arg_count = args->size;
-    expr_t **arg_items = arena_copy(parser.arena, args->items, arg_count * sizeof(expr_t *));
-    pvec_destroy(args);
+    expr_vec_move(&args, parser.arena);
 
     expr_t *expr = arena_alloc(parser.arena, sizeof *expr);
     *expr = (expr_t){
         .kind = EXPR_CALL,
         .span = span_join(callee->span, right_paren.span),
-        .call = {.callee = callee->var, .args = arg_items, .arg_count = arg_count}
+        .call = {.callee = callee->var, .args = args}
     };
     return expr;
 }
@@ -310,5 +307,5 @@ type_t *expr_type() {
     }
 
     report_err(next.span, "Unknown type '" STR_FMT "'", STR_ARG(next.lexeme));
-    return &ty_error;
+    return nullptr;
 }

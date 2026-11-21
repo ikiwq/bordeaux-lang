@@ -36,6 +36,6 @@ obj_t *get_obj(str_t lexeme);
 bool declare_var(token_t identifier, type_t *type);
 bool define_var(token_t identifier);
 
-bool declare_fun(token_t identifier, fun_param_t **params, size_t param_count, type_t *return_type);
+bool declare_fun(token_t identifier, fun_param_vec_t params, type_t *return_type);
 
 #endif // BORDEAUX_SCOPE_H

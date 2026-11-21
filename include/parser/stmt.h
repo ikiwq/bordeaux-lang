@@ -23,7 +23,16 @@ typedef struct {
     type_t *type;
 } fun_param_t;
 
+#define VEC_TYPE fun_param_t
+#define VEC_NAME fun_param
+#include "dsa/vec.h"
+
 typedef struct stmt stmt_t;
+
+#define VEC_TYPE stmt_t *
+#define VEC_NAME stmt
+#include "dsa/vec.h"
+
 struct stmt {
     stmt_kind_t kind;
     span_t span;
@@ -31,8 +40,7 @@ struct stmt {
     union {
         struct {
             token_t identifier;
-            fun_param_t **params;
-            size_t param_count;
+            fun_param_vec_t params;
             type_t *return_type;
             stmt_t *body;
         } fun;
@@ -65,10 +73,7 @@ struct stmt {
             expr_t *value;
         } return_;
 
-        struct {
-            stmt_t **stmts;
-            size_t stmt_count;
-        } block;
+        stmt_vec_t block;
 
         expr_t *expr;
     };

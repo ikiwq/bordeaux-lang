@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mem/pvec.h"
 #include "parser/stmt.h"
 #include "scanner/scanner.h"
 
@@ -21,8 +20,7 @@ parse_result_t parse(const char *src, arena_t *arena) {
     parser.arena = arena;
     advance(); // Load the first token
 
-    pvec_t *pvec = pvec_init();
-
+    stmt_vec_t stmts = {};
     bool had_error = false;
     while (has_more()) {
         stmt_t *stmt = global_statement();
@@ -31,13 +29,12 @@ parse_result_t parse(const char *src, arena_t *arena) {
             panic_mode();
             continue;
         }
-        pvec_push(pvec, stmt);
+        stmt_vec_push(&stmts, stmt);
     }
 
-    size_t stmt_count = pvec->size;
-    stmt_t **stmts = pvec_unwrap(pvec, arena);
+    stmt_vec_move(&stmts, parser.arena);
 
-    return (parse_result_t){.success = !had_error, .stmts = stmts, .stmt_count = stmt_count};
+    return (parse_result_t){.success = !had_error, .statements = stmts};
 }
 
 static token_kind_t sync_tokens[] = {

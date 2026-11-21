@@ -11,6 +11,6 @@ typedef struct {
 
 extern checker_t checker;
 
-bool check(stmt_t **stmts, size_t stmt_count);
+bool check(stmt_vec_t stmts);
 
 #endif // BORDEAUX_ANALYZER_H
